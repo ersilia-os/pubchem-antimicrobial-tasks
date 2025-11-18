@@ -1,10 +1,12 @@
-# eos-analysis-template
+# 🦠 Antimicrobial binary ML tasks from PubChem 💊
 
-This repository provides a structured template for setting up new research analysis in Ersilia.
+Get antimicrobial tasks from [PubChem](https://pubchem.ncbi.nlm.nih.gov/) framed as binary classifications. 
+
+This repository is currently **WORK IN PROGRESS**. ⚠️🚧
 
 ## Background
 
-Replace this paragraph with a short description of the project. This description should explain the background or context of the project, specifying collaborators.
+[...]
 
 ## Tracking details
 
@@ -77,15 +79,15 @@ eos-analysis-template/
 
 ## Project motivation and goal
 
-Write a brief description about the scientific motivation and goal of the project. 
+[...]
 
 ## 🚀 Getting Started
 
 1. **Clone this repository**  
    ```bash
-   git clone <your-repo-url>
-   cd eos-analysis-template
-
+   git clone https://github.com/ersilia-os/pubchem-antimicrobial-tasks.git
+   cd pubchem-antimicrobial-tasks
+   ```
 
 ## About the Ersilia Open Source Initiative
 

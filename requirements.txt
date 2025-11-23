@@ -4,3 +4,4 @@ tqdm==4.67.1
 nbformat
 ipykernel
 matplotlib==3.10.1
+beautifulsoup4

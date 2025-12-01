@@ -57,7 +57,7 @@ DATA_PROCESSED.mkdir(exist_ok=True)
 # - Pipe-separated BioAssay IDs (AID) linked to each taxon
 
 # %%
-df_raw = pd.read_csv(DATA_DIR / "PubChem_taxonomy_text_Mycobacterium tuberculosis.csv")
+df_raw = pd.read_csv(DATA_RAW / "PubChem_taxonomy_text_Mycobacterium tuberculosis.csv")
 df_raw.head()
 
 # %% [markdown]

@@ -6,3 +6,4 @@ ipykernel
 matplotlib==3.10.1
 beautifulsoup4
 lxml
+seaborn>=0.12.2

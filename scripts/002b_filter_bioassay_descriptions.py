@@ -101,7 +101,7 @@ def worker_process_xml(args):
         return None
 
 
-def process_one_zip(zip_file, DESC_DIR, KEEP_DESC_V3, N_WORKERS,
+def process_one_zip(zip_file, DESC_DIR, KEEP_DESC, N_WORKERS,
                     taxid_to_pathogen, pathogens):
 
     zip_chunk = zip_file.stem
@@ -124,7 +124,7 @@ def process_one_zip(zip_file, DESC_DIR, KEEP_DESC_V3, N_WORKERS,
 
             aid = result["AID"]
             xml_path = Path(result["xml_path"])
-            dst = KEEP_DESC_V3 / f"{aid}.xml"
+            dst = KEEP_DESC / f"{aid}.xml"
 
             if xml_path.suffix == ".gz":
                 with gzip.open(xml_path, "rb") as fi, open(dst, "wb") as fo:
@@ -152,13 +152,13 @@ def main():
     PUBCHEM_DIR = DATA_RAW / "pubchem_bioassays"
     DESC_DIR = PUBCHEM_DIR / "Description"
 
-    # NEW: Filtered output for v3
-    KEEP_V3 = DATA_RAW / "filtered_assays_v3"
-    KEEP_DESC_V3 = KEEP_V3 / "Description"
-    KEEP_DESC_V3.mkdir(parents=True, exist_ok=True)
+    KEEP = DATA_RAW / "filtered_assays"
+    KEEP_DESC = KEEP / "Description"
+    KEEP_DESC.mkdir(parents=True, exist_ok=True)
 
-    OUT_CSV = DATA_PROCESSED / "004b_filtered_aid_summary.csv"
-    ZIP_LOG = DATA_PROCESSED / "processed_zips_v3.txt"
+    OUT_CSV = DATA_PROCESSED / "04_filtered_aid_summary.csv"
+    OUT_AIDS = DATA_PROCESSED / "05_filtered_aids.csv"
+    ZIP_LOG = DATA_PROCESSED / "processed_zips.txt"
 
     if ZIP_LOG.exists():
         processed_chunks = set(ZIP_LOG.read_text().splitlines())
@@ -197,7 +197,7 @@ def main():
         zip_start = time.time()
 
         recs = process_one_zip(
-            zip_file, DESC_DIR, KEEP_DESC_V3, N_WORKERS,
+            zip_file, DESC_DIR, KEEP_DESC, N_WORKERS,
             taxid_to_pathogen, pathogens
         )
         all_records.extend(recs)
@@ -216,6 +216,9 @@ def main():
     df_final = pd.DataFrame(all_records).drop_duplicates()
     df_final.to_csv(OUT_CSV, index=False)
 
+    df_exploded = df_final.explode("Pathogen")
+    df_exploded[["AID", "Pathogen"]].drop_duplicates().to_csv(OUT_AIDS, index=False)
+
     summary = (
         df_final.groupby("Pathogen")["AID"]
         .nunique()
@@ -227,7 +230,7 @@ def main():
     total_minutes = (time.time() - start_time) / 60
     print("\n✅ Extraction complete!")
     print(f"📝 Summary saved to: {OUT_CSV}")
-    print(f"📂 Filtered XMLs saved to: {KEEP_DESC_V3}")
+    print(f"📂 Filtered XMLs saved to: {KEEP_DESC}")
     print(f"⏱ Total time: {total_minutes:.2f} min")
 
 

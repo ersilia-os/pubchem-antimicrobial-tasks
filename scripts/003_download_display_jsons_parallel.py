@@ -42,7 +42,6 @@ print(f"🔍 Total filtered AIDs: {len(all_aids)}")
 print(f"✅ Already parsed: {len(already_parsed)}")
 print(f"⏳ Remaining to process: {len(pending_aids)}\n")
 
-
 # ============================
 # FETCH + PARSE FUNCTIONS
 # ============================
@@ -55,7 +54,7 @@ def fetch_and_parse_display_json(aid, retries=RETRIES, delay=DELAY):
     if json_path.exists():
         try:
             data = json.loads(json_path.read_text(encoding="utf-8"))
-            return parse_display_json(data)
+            return parse_json(data)
         except Exception:
             return None
 
@@ -65,13 +64,12 @@ def fetch_and_parse_display_json(aid, retries=RETRIES, delay=DELAY):
             r = requests.get(url, timeout=15)
             r.raise_for_status()
             json_path.write_text(r.text, encoding="utf-8")
-            return parse_display_json(r.json())
+            return parse_json(r.json())
         except requests.exceptions.RequestException:
             time.sleep(delay)
         except Exception:
             return None
     return None
-
 
 def parse_json(data):
     record = data.get("Record", {})
@@ -83,7 +81,7 @@ def parse_json(data):
         "Compounds_Tested": None,
         "Compounds_Active": None,
         "Compounds_Inactive": None,
-        "Tested_Substances": None,
+        "Tested_Substances": None,  # ✅ NEW
         "Target": None,
         "Assay_Type": None,
         "Assay_Format": None,
@@ -111,8 +109,14 @@ def parse_json(data):
         for section in sections:
             heading = section.get("TOCHeading", "")
 
-            # Correct handling of the "Target" subsection
-            if heading == "Target":
+            # ✅ Extract Tested Substances
+            if heading == "Tested Substances":
+                for info in section.get("Information", []):
+                    if info.get("Name") == "All Substances":
+                        result["Tested_Substances"] = info.get("Value", {}).get("Number", [None])[0]
+
+            # ✅ Target
+            elif heading == "Target":
                 for subsection in section.get("Section", []):
                     for info in subsection.get("Information", []):
                         val = extract_first_string(info)
@@ -120,6 +124,7 @@ def parse_json(data):
                             result["Target"] = val
                             break
 
+            # Other info
             for info in section.get("Information", []):
                 name = info.get("Name", "")
                 val = extract_first_string(info)
@@ -135,8 +140,6 @@ def parse_json(data):
                         result["Compounds_Active"] = number
                     elif name == "Inactive Compounds":
                         result["Compounds_Inactive"] = number
-                    elif name == "All Substances":
-                        result["Tested_Substances"] = number
 
                 elif heading == "BioAssay Annotations":
                     if name == "Assay Type":
@@ -158,7 +161,7 @@ def parse_json(data):
                 elif heading == "Source" and val:
                     result["Source"] = val
 
-            # Recurse into nested sections
+            # Recurse into nested subsections
             if "Section" in section:
                 walk_sections(section["Section"])
 
@@ -167,8 +170,7 @@ def parse_json(data):
 
 # ============================
 # MAIN EXECUTION
-# ============================1234
-
+# ============================
 
 def main():
     if not pending_aids:

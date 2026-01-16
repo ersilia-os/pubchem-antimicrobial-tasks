@@ -73,7 +73,7 @@ def fetch_and_parse_display_json(aid, retries=RETRIES, delay=DELAY):
     return None
 
 
-def parse_display_json(data):
+def parse_json(data):
     record = data.get("Record", {})
     aid = record.get("RecordNumber", None)
 
@@ -83,6 +83,7 @@ def parse_display_json(data):
         "Compounds_Tested": None,
         "Compounds_Active": None,
         "Compounds_Inactive": None,
+        "Tested_Substances": None,
         "Target": None,
         "Assay_Type": None,
         "Assay_Format": None,
@@ -110,7 +111,7 @@ def parse_display_json(data):
         for section in sections:
             heading = section.get("TOCHeading", "")
 
-            # Target section (has nested subsections)
+            # Correct handling of the "Target" subsection
             if heading == "Target":
                 for subsection in section.get("Section", []):
                     for info in subsection.get("Information", []):
@@ -119,7 +120,6 @@ def parse_display_json(data):
                             result["Target"] = val
                             break
 
-            # Flat fields
             for info in section.get("Information", []):
                 name = info.get("Name", "")
                 val = extract_first_string(info)
@@ -135,6 +135,8 @@ def parse_display_json(data):
                         result["Compounds_Active"] = number
                     elif name == "Inactive Compounds":
                         result["Compounds_Inactive"] = number
+                    elif name == "All Substances":
+                        result["Tested_Substances"] = number
 
                 elif heading == "BioAssay Annotations":
                     if name == "Assay Type":
@@ -156,7 +158,7 @@ def parse_display_json(data):
                 elif heading == "Source" and val:
                     result["Source"] = val
 
-            # Recurse into subsections
+            # Recurse into nested sections
             if "Section" in section:
                 walk_sections(section["Section"])
 

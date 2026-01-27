@@ -227,6 +227,8 @@ To download all .zip files from the PubChem BioAssay FTP (Description + Data) ru
 scripts/002_download_pubchem_bioassay_csv.py
 ```
 
+
+
 Then, to parse the downloaded files and filter for pathogen-linked assays using both Taxonomy IDs and organism mentions run:
 
 ```bash
@@ -234,8 +236,19 @@ scripts/003_filter_bioassay_descriptions.py
 ```
 
 ### Outputs
+From `002_download_pubchem_bioassay_csv.py`:
+
 - `*.xml` → Filtered BioAssay XML files matching pathogens (one per AID)
-- `04_filtered_aid_summary.csv` → Summary table of all matched AIDs with `AID`, `Pathogen`, `ChEMBLid` & `ZipFolder`
+
+````
+data/raw/pubchem_bioassays/filtered_assays/
+├── Description/    ← BioAssay XML metadata (1.descr.xml.gz, ...)
+└── Data/           ← BioAssay results (1.csv.gz, ...)
+````
+
+From `003_filter_bioassay_descriptions.py`:
+
+- `04_filtered_aid_summary.csv` → Summary table of all matched AIDs with `AID`, `Pathogen`, `ChEMBLid`, `ZipFolder`
 - `05_filtered_aids.csv` → Long-format table with one row per (AID, Pathogen) pair
 - `processed_zips.txt` → List of completed ZIP chunks, used to resume work without reprocessing
 
@@ -243,12 +256,35 @@ scripts/003_filter_bioassay_descriptions.py
 
 ### 3️⃣ Descriptors of interest (Display files)
 
-### Script
-- `003_download_display_jsons_parallel.py`
+### Purpose
+Each PubChem BioAssay has a Display file in JSON format that provides rich metadata beyond what’s available in the XML files.
 
-### Output
-- `06_display_info.csv`
-- `07_filtered_aids_metadata.csv`
+These Display JSONs are downloaded from PubChem for all filtered AIDs from Step 2 and used to extract:
+
+1. Compound statistics: `Compounds_Tested`, `Compounds_Active`, `Compounds_Inactive`, `Tested_Substances`
+2. Biological context: `Target`, `Assay Organism`, `Strain`, `Taxonomy ID`
+3. Assay format and source: `Assay Type`, `Assay Format`, `Source`, `ChEMBL_ID`
+
+This step provides the key information needed to compare PubChem vs ChEMBL assays, and to build binary classification tasks.
+
+### Scripts
+
+To download the Display JSON files of interest from the PubChem run:
+
+```bash
+scripts/004_download_display_jsons_parallel.py
+```
+
+### Outputs
+
+- `*.json` → Raw Display JSON files are cached under:
+````
+data/raw/pubchem_bioassays/filtered_assays/
+└── Display/    ← BioAssay JSON Display metadata (AID_1_display.json, ...)
+````
+- `06_display_info.csv` → One row per AID with all extracted descriptors (compound counts, organisms, targets, etc.)
+- `07_filtered_aids_metadata.csv` → Merged view combining filtering results (from `05_filtered_aids.csv`) and `06_display_info.csv`
+
 
 ---
 

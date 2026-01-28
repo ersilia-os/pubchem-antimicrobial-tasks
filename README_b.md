@@ -65,11 +65,12 @@ pubchem-antimicrobial-tasks/
 ├── scripts/
 │   ├── 001_build_pathogen_taxonomy.py
 │   ├── 002_download_pubchem_bioassay_csv.py
-│   ├── 002_filter_bioassay_descriptions.py
-│   └── 003_download_display_jsons_parallel.py
+│   ├── 003_filter_bioassay_descriptions.py
+│   └── 004_download_display_jsons_parallel.py
 │
 ├── notebooks/
-│   └── 001_pubchem_bioassays_pathogens_of_interest.ipynb
+│   ├── 001_pubchem_bioassays_pathogens_of_interest.ipynb
+│   └── 002_pubchem_chembl_assay_comparison.ipynb
 │
 ├── assets/
 ├── output/
@@ -278,10 +279,12 @@ scripts/004_download_display_jsons_parallel.py
 ### Outputs
 
 - `*.json` → Raw Display JSON files are cached under:
-````
+
+```bash
 data/raw/pubchem_bioassays/filtered_assays/
 └── Display/    ← BioAssay JSON Display metadata (AID_1_display.json, ...)
-````
+```
+
 - `06_display_info.csv` → One row per AID with all extracted descriptors (compound counts, organisms, targets, etc.)
 - `07_filtered_aids_metadata.csv` → Merged view combining filtering results (from `05_filtered_aids.csv`) and `06_display_info.csv`
 
@@ -290,10 +293,46 @@ data/raw/pubchem_bioassays/filtered_assays/
 
 ## PubChem ↔ ChEMBL comparison
 
-Compound and assay-level comparison between PubChem and ChEMBL, including mismatch analysis.
+This step is not part of the core data-extraction pipeline. Instead, it is an analytical validation step used to assess whether the filtered PubChem assays are suitable for building binary ML tasks, and how well they align with ChEMBL bioassays.
+
+All analyses in this section are performed inside the notebook:
+
+```bash
+notebooks/002_pubchem_chembl_assay_comparison.ipynb
+```
+
+The notebook performs the following analyses:
+
+1. Assay coverage per pathogen
+    - Number of PubChem assays vs ChEMBL assays
+    - Percentage of PubChem assays with a ChEMBL mapping
+
+2. Compound count consistency. For each matched assay, ChEMBL’s cpds is compared against:
+    - Compounds_Tested (PubChem compounds)
+    - Tested_Substances (PubChem substances)
+
+  This reveals structural differences between PubChem and ChEMBL counting schemes.
+
+3. Active / inactive label availability. Assays are classified by whether they contain:
+    - both active and inactive counts,
+    - only active,
+    - only inactive,
+    - none.
+
+This is a key criterion for binary ML task construction.
 
 ### Output
 - `08_pubchem_vs_chembl_assays.csv`
+
+This file contains, per assay:
+- pathogen
+- PubChem compound & substance counts
+- ChEMBL cpds
+- count differences
+- match classification
+- activity label availability
+
+It serves as the bridge between raw PubChem bioassays and downstream ML task generation.
 
 ---
 

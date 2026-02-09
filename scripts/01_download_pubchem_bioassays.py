@@ -11,19 +11,21 @@ Download PubChem BioAssay CSV ZIP archives (Description + Data) from NCBI FTP ov
 - progress bar over files processed
 
 Example:
-  python scripts/01_download_pubchem_bioassay_csv.py --out data/raw/pubchem_bioassays --workers 6
+  python scripts/01_download_pubchem_bioassays.py --out ../data/raw/bioassays --workers 6
 """
 
 from __future__ import annotations
 
 import argparse
 import re
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
-
+import gzip
+import shutil
+import urllib.request
+from urllib.error import URLError, HTTPError
 import requests
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -32,6 +34,8 @@ from tqdm import tqdm
 
 URL_DESC = "https://ftp.ncbi.nlm.nih.gov/pubchem/Bioassay/CSV/Description/"
 URL_DATA = "https://ftp.ncbi.nlm.nih.gov/pubchem/Bioassay/CSV/Data/"
+URL_BIOASSAYS = "https://ftp.ncbi.nlm.nih.gov/pubchem/Bioassay/Extras/bioassays.tsv.gz"
+
 
 # Reuse TCP connections + set a polite UA
 SESSION = requests.Session()
@@ -171,6 +175,52 @@ def download_zip_resumable(
 
     return (filename, "failed", 0)
 
+def _download_with_retries(url: str, dst: Path, timeout: float, retries: int) -> None:
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            with urllib.request.urlopen(url, timeout=timeout) as r, open(dst, "wb") as f:
+                shutil.copyfileobj(r, f)
+            return
+        except (URLError, HTTPError, TimeoutError, OSError) as e:
+            last_err = e
+            if attempt < retries:
+                # simple backoff
+                time.sleep(min(2 ** (attempt - 1), 10))
+            else:
+                raise RuntimeError(f"Failed to download after {retries} attempts: {url}") from last_err
+
+
+def download_and_unpack_bioassays_tsv(
+    out_dir: Path,
+    *,
+    url: str = URL_BIOASSAYS,
+    overwrite: bool = False,
+    timeout: float = 120.0,
+    retries: int = 5,
+) -> Path:
+    """
+    Download PubChem BioAssay 'bioassays.tsv.gz' and unpack to 'bioassays.tsv'.
+    Returns the path to the unpacked TSV.
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    gz_path = out_dir / "bioassays.tsv.gz"
+    tsv_path = out_dir / "bioassays.tsv"
+
+    if tsv_path.exists() and not overwrite:
+        return tsv_path
+
+    if overwrite or (not gz_path.exists()):
+        _download_with_retries(url, gz_path, timeout=timeout, retries=retries)
+
+    # Unpack (streaming)
+    with gzip.open(gz_path, "rb") as fin, open(tsv_path, "wb") as fout:
+        shutil.copyfileobj(fin, fout)
+
+    return tsv_path
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -186,6 +236,9 @@ def main() -> int:
     ap.add_argument("--timeout", type=float, default=120.0, help="HTTP timeout seconds (default: 120)")
     ap.add_argument("--retries", type=int, default=5, help="Retries for listing and downloads (default: 5)")
     ap.add_argument("--polite-sleep", type=float, default=0.0, help="Sleep seconds after each file (default: 0)")
+    ap.add_argument("--bioassays", action="store_true", help="Download and unpack Extras/bioassays.tsv.gz")
+    ap.add_argument("--bioassays-url", type=str, default=URL_BIOASSAYS, help="Override bioassays.tsv.gz URL")
+    ap.add_argument("--bioassays-overwrite", action="store_true", help="Redownload/re-unpack bioassays even if present")
     args = ap.parse_args()
 
     # default to both if neither selected
@@ -196,6 +249,21 @@ def main() -> int:
     out_root: Path = args.out
     desc_dir = out_root / "Description"
     data_dir = out_root / "Data"
+    
+    if args.bioassays:
+        print(f"Downloading/unpacking bioassays.tsv.gz -> {out_root}")
+        try:
+            tsv_path = download_and_unpack_bioassays_tsv(
+                out_root,
+                url=args.bioassays_url,
+                overwrite=args.bioassays_overwrite,
+                timeout=args.timeout,
+                retries=args.retries,
+            )
+            print(f"Bioassays TSV ready: {tsv_path.resolve()}")
+        except Exception as e:
+            print(f"Bioassays download/unpack failed: {e}")
+            return 2
 
     jobs: List[DownloadJob] = []
 
@@ -254,7 +322,6 @@ def main() -> int:
 
     print("\nAll done ✅")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

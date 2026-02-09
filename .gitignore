@@ -1,5 +1,6 @@
 # Project data files
 data/*
+output/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

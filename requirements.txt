@@ -1,9 +1,0 @@
-pandas==2.2.1
-requests>=2.0
-tqdm==4.67.1
-nbformat
-ipykernel
-matplotlib==3.10.1
-beautifulsoup4
-lxml
-seaborn>=0.12.2

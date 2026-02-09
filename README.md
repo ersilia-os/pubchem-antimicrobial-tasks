@@ -25,10 +25,7 @@ This project builds a **reproducible, high-recall pipeline** to:
 
 ## Tracking details
 
-The project is tracked by Git (mainly for code) and DVC (mainly for data):
-
-* Tracked by Git and linked to a Github repository: only src, scripts and notebooks.
-* Tracked by DVC and linked to a Google Drive folder inside "Projects/<<Repository name>>".
+The project is tracked by Git (for code) and EOSVC (for data). The data folder does not have a version control, so be careful when downloading and uploading it. Read the eosvc [documentation](https://github.com/ersilia-os/eosvc) for more information.
 
 ---
 
@@ -40,113 +37,32 @@ pubchem-antimicrobial-tasks/
 ├── LICENSE
 ├── README.md
 ├── .gitignore
-├── install.sh
-├── requirements.txt
 │
 ├── data/
-│   ├── raw/
-│   │   ├── PubChem_taxonomy_text_*.csv
-│   │   ├── Aid2Taxid.tsv
-│   │   └── pubchem_bioassays/
-│   │       ├── Description/
-│   │       └── Data/
-│   │
-│   └── processed/
-│       ├── 00_pathogens_taxid.csv
-│       ├── 01_pathogens_taxid_cleaned.csv
-│       ├── 02_pathogens_taxid_cleaned_dict.json
-│       ├── 03_aid_counts_per_pathogen.csv
-│       ├── 004b_filtered_aid_summary.csv
-│       ├── 05_filtered_aids.csv
-│       ├── 06_display_info.csv
-│       ├── 07_filtered_aids_metadata.csv
-│       └── 08_pubchem_vs_chembl_assays.csv
+|   ├── config/ _data only available upon manual download or originating from another source, do not delete or edit_
+│   ├── raw/ _data automatically downloaded via scripts from the internet_
+│   └── processed/ _data from curation processes_
+├── scripts/ _numbered scripts to run the pipeline_
 │
-├── scripts/
-│   ├── 001_build_pathogen_taxonomy.py
-│   ├── 002_download_pubchem_bioassay_csv.py
-│   ├── 003_filter_bioassay_descriptions.py
-│   └── 004_download_display_jsons_parallel.py
-│
-├── notebooks/
-│   ├── 001_pubchem_bioassays_pathogens_of_interest.ipynb
-│   └── 002_pubchem_chembl_assay_comparison.ipynb
-│
+├── notebooks/ _easy to look at checks and tests_
 ├── assets/
 ├── output/
-│   ├── results/
-│   └── plots/
-│
-├── src/
-├── tools/
-├── docs/
-├── tmp/
+│   ├── results/ _data cleaned for modelling_
+│   └── plots/ _analysis results_
 │
 └── .git/
 ```
-
-📌 Empty folders are preserved with `.gitkeep`.
-
 ---
 
 ## Project motivation and goal
 
-The ultimate goal is to build **binary antimicrobial ML tasks** (active vs inactive) from PubChem assays, aligned with ChEMBL where possible.
+The ultimate goal is to build **binary antimicrobial ML tasks** (active vs inactive) from PubChem assays, without duplicating the efforts done in ChEMBL data curation. Therefore, we only keep assays in PubChem that:
 
-To do this reliably, we must first answer:
+1. Contain more than 100 datapoints
+2. Contain more than 10% of data difference (number of compounds) between PubChem and ChEMBL (with more data in PubChem) or
+3. Are not present in ChEMBL at all
 
-- *Which PubChem assays truly target a pathogen?*
-- *How many compounds were tested per assay?*
-- *How consistent are PubChem and ChEMBL compound counts?*
-- *Which assays contain enough metadata for ML?*
-
-This repository focuses on building the **data foundation** needed to answer these questions.
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/ersilia-os/pubchem-antimicrobial-tasks.git
-cd pubchem-antimicrobial-tasks
-```
-
-### 2. Install dependencies
-```bash
-bash install.sh
-```
-or
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Pipeline overview
-
-The **final pipeline** consists of **three main stages**, implemented via scripts and documented in `notebooks/001_pubchem_bioassays_pathoegns_of_interest.ipynb`.
-
----
-
-### 1️⃣ Build Pathogen Taxonomy Table
-
-### Purpose
-The first step is to create a high-confidence mapping between each pathogen and its associated **NCBI Taxonomy IDs**, which is required to query PubChem BioAssays in a structured way.
-
-PubChem doesn’t expose a stable API for this, so we use a hybrid manual + automated approach.
-
-### Inputs
-
-The first step is to build a **curated mapping** between each **pathogen name** and the associated **NCBI Taxonomy IDs**, which are essential for programmatically retrieving PubChem BioAssays.
-
-**Manual Step: Download Pathogen Taxonomy Summaries**
-
-From the PubChem website:
-
-PubChem → Search → Organism Name → “Taxonomy” → Export → Summary (CSV)
-
-You should repeat this for each of the 15 pathogens listed below:
+### Pathogens of interest
 
 ````
 Acinetobacter baumannii
@@ -166,175 +82,34 @@ Schistosoma mansoni
 Streptococcus pneumoniae
 ````
 
-Each file is named like:
-
-```bash
-data/raw/PubChem_taxonomy_text_<Pathogen>.csv
-```
-
-Example:
-
-```bash
-PubChem_taxonomy_text_Acinetobacter baumannii.csv
-```
-
-Manually downloaded .csv files must be saved to:
-
-```
-data/raw/
-```
-
-### Scripts
-Once all .csv files are in data/raw/, run:
-
-```bash
-python scripts/001_build_pathogen_taxonomy.py
-```
-
-### Outputs
-
-- `00_pathogens_taxid.csv` → Raw merged table from all .csv manual exports
-- `01_pathogens_taxid_cleaned.csv` → After filtering out irrelevant taxonomies (e.g. viruses, phages, other organisms)
-- `02_pathogens_taxid_cleaned_dict.json` → Python dictionary format: {Pathogen: [TaxID1, TaxID2, ...]}
-
-These are used downstream to retrieve AIDs via multiple strategies.
-
 ---
 
-### 2️⃣ Downloading ALL PubChem BioAssays locally
+## 🚀 Getting Started
 
-### Purpose
-
-We evaluated several strategies to retrieve pathogen-linked bioassays:
-
-- **PubChem UI** search captures the most assays by searching free text across all fields, including references and comments.
-
-- Other methods like **Taxonomy exports**, **PUG REST API**, and **Aid2Taxid** use structured links via NCBI Taxonomy IDs — but miss many relevant assays.
-
-Ultimately, we selected the **Download All** strategy:
-
-- It retrieves ~50% of the UI assay count
-- But it’s fully automated, reproducible, and uniquely allows:
-  - Matching both Taxonomy IDs
-  - Searching structured metadata fields (e.g., *Target, Assay Organism, Strain*)
-
-This comparison is detailed in `notebooks/001_pubchem_bioassays_pathogens_of_interest.ipynb`.
-
-### Scripts
-
-To download all .zip files from the PubChem BioAssay FTP (Description + Data) run:
-
+### 1. Clone the repository
 ```bash
-scripts/002_download_pubchem_bioassay_csv.py
+git clone https://github.com/ersilia-os/pubchem-antimicrobial-tasks.git
+cd pubchem-antimicrobial-tasks
+eosvc download --path data
 ```
-
-
-
-Then, to parse the downloaded files and filter for pathogen-linked assays using both Taxonomy IDs and organism mentions run:
-
-```bash
-scripts/003_filter_bioassay_descriptions.py
-```
-
-### Outputs
-From `002_download_pubchem_bioassay_csv.py`:
-
-- `*.xml` → Filtered BioAssay XML files matching pathogens (one per AID)
-
-````
-data/raw/pubchem_bioassays/filtered_assays/
-├── Description/    ← BioAssay XML metadata (1.descr.xml.gz, ...)
-└── Data/           ← BioAssay results (1.csv.gz, ...)
-````
-
-From `003_filter_bioassay_descriptions.py`:
-
-- `04_filtered_aid_summary.csv` → Summary table of all matched AIDs with `AID`, `Pathogen`, `ChEMBLid`, `ZipFolder`
-- `05_filtered_aids.csv` → Long-format table with one row per (AID, Pathogen) pair
-- `processed_zips.txt` → List of completed ZIP chunks, used to resume work without reprocessing
-
 ---
 
-### 3️⃣ Descriptors of interest (Display files)
+## Pipeline overview
 
-### Purpose
-Each PubChem BioAssay has a Display file in JSON format that provides rich metadata beyond what’s available in the XML files.
+### 1. Obtain config data
+The data necessary to run the pipeline comes from either manual curation or from other pipelines at Ersilia. You can get it by simply doing an eosvc download, and it will be located in 'data/config'
+In short:
+* taxnonomy_raw: downloaded Taxonomy for each pathogen name from the PubChem website: PubChem → Search → Organism Name → “Taxonomy” → Export → Summary (CSV)
+* bioassays_summary: likewise, downloaded Bioassays for each pathogen name from the PubChem website: PubChem → Search → Organism Name → “Bioassays” → Export → Summary (CSV)
+* bioassays_selected_manually: manual curation of assays that would be discarded based on automatic curation but we do want to include (curation from processed/bioassays_summary/bioassays_{pathogen_name}_manual_check.csv)
+* chembl_mappings: assays in chembl (assays.csv) and individual assay lists per each pathogen of interest, with the total number of compounds per assay. Comes from the [chembl-antimicrobial-tasks](https://github.com/ersilia-os/chembl-antimicrobial-tasks)
 
-These Display JSONs are downloaded from PubChem for all filtered AIDs from Step 2 and used to extract:
+### 2. Run scripts sequentially
+The scripts are numbered and when run sequentially, will generate the necessary files:
+* '00_preprocess_bioassays.py': curates the manually downloaded lists of taxonomy names associated with a pathogen and keeps the right ones. Uses the taxonomies to curate the bioassays for each pathogen associated to the right taxid or targettaxid (if both fields empty, add to a manual_check list).
+* '01_downoad_pubchem_bioassays.py': automatically downloads the Bioassays (Data and Description) and the entire bioassays.csv file in the data/raw/bioassays folder.
+* '02_extract_bioassays.py': compares pubchem and chembl and keeps a list of pubchem AIDs to consider for individual dataset extraction.
 
-1. Compound statistics: `Compounds_Tested`, `Compounds_Active`, `Compounds_Inactive`, `Tested_Substances`
-2. Biological context: `Target`, `Assay Organism`, `Strain`, `Taxonomy ID`
-3. Assay format and source: `Assay Type`, `Assay Format`, `Source`, `ChEMBL_ID`
-
-This step provides the key information needed to compare PubChem vs ChEMBL assays, and to build binary classification tasks.
-
-### Scripts
-
-To download the Display JSON files of interest from the PubChem run:
-
-```bash
-scripts/004_download_display_jsons_parallel.py
-```
-
-### Outputs
-
-- `*.json` → Raw Display JSON files are cached under:
-
-```bash
-data/raw/pubchem_bioassays/filtered_assays/
-└── Display/    ← BioAssay JSON Display metadata (AID_1_display.json, ...)
-```
-
-- `06_display_info.csv` → One row per AID with all extracted descriptors (compound counts, organisms, targets, etc.)
-- `07_filtered_aids_metadata.csv` → Merged view combining filtering results (from `05_filtered_aids.csv`) and `06_display_info.csv`
-
-
----
-
-## PubChem ↔ ChEMBL comparison
-
-This step is not part of the core data-extraction pipeline. Instead, it is an analytical validation step used to assess whether the filtered PubChem assays are suitable for building binary ML tasks, and how well they align with ChEMBL bioassays.
-
-All analyses in this section are performed inside the notebook:
-
-```bash
-notebooks/002_pubchem_chembl_assay_comparison.ipynb
-```
-
-The notebook performs the following analyses:
-
-1. Assay coverage per pathogen
-    - Number of PubChem assays vs ChEMBL assays
-    - Percentage of PubChem assays with a ChEMBL mapping
-
-2. Compound count consistency. For each matched assay, ChEMBL’s cpds is compared against:
-    - Compounds_Tested (PubChem compounds)
-    - Tested_Substances (PubChem substances)
-
-  This reveals structural differences between PubChem and ChEMBL counting schemes.
-
-3. Active / inactive label availability. Assays are classified by whether they contain:
-    - both active and inactive counts,
-    - only active,
-    - only inactive,
-    - none.
-
-This is a key criterion for binary ML task construction.
-
-### Output
-- `08_pubchem_vs_chembl_assays.csv`
-
-This file contains, per assay:
-- pathogen
-- PubChem compound & substance counts
-- ChEMBL cpds
-- count differences
-- match classification
-- activity label availability
-
-It serves as the bridge between raw PubChem bioassays and downstream ML task generation.
-
----
 
 ## About the Ersilia Open Source Initiative
 

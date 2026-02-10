@@ -1,19 +1,18 @@
 import os
+import sys
 import pandas as pd
+import stylia as st
+import matplotlib.pyplot as plt
 
 root = os.path.dirname(os.path.abspath(__file__))
-datapath = os.path.join(root, "..", "data")
-configpath = os.path.join(root, "..", "config")
+sys.path.append(os.path.join(root, "..", "src"))
 
-pathogens = [
-    "Acinetobacter_baumannii", "Candida_albicans", "Campylobacter",
-    "Escherichia_coli", "Enterococcus_faecium", "Enterobacter",
-    "Helicobacter_pylori", "Klebsiella_pneumoniae",
-    "Mycobacterium_tuberculosis", "Neisseria_gonorrhoeae",
-    "Pseudomonas_aeruginosa", "Plasmodium_falciparum",
-    "Staphylococcus_aureus", "Schistosoma_mansoni",
-    "Streptococcus_pneumoniae"
-]
+from default import pathogens
+
+datapath = os.path.join(root, "..", "data")
+configpath = os.path.join(datapath, "config")
+
+pathogen_aids = {}
 
 for p in pathogens:
     df = pd.read_csv(os.path.join(configpath, "taxonomy_raw", f"PubChem_taxonomy_{p}.csv"))
@@ -56,8 +55,8 @@ for p in pathogens:
 
     # for rows without targettax id nor taxid, keep them for manual checking
     no_tax = bioassays[has_no_target & bioassays["taxids"].isna()]
-    no_tax = no_tax[no_tax["cnt"]>10]
-    print(f"No taxid info with >10 mols: {len(no_tax)} assays need manual checking")
+    no_tax = no_tax[no_tax["cnt"]>100]
+    print(f"No taxid info with >100 mols: {len(no_tax)} assays need manual checking")
     if len(no_tax)>0:
         no_tax.to_csv(os.path.join(datapath, "processed", "bioassays_summary", f"bioassays_{p}_manual_check.csv"), index=False)
     
@@ -70,5 +69,34 @@ for p in pathogens:
     else:
         bioassays_final = pd.concat([bioassays1, bioassays2], axis=0).drop_duplicates()
     print(p, len(bioassays_final))
+    bioassays_final_100 = bioassays_final[bioassays_final["cnt"]>100]
+    pathogen_aids[p]=  [len(bioassays_final), bioassays_final["cnt"].sum(),len(bioassays_final_100), bioassays_final_100["cnt"].sum()]
     bioassays_final.to_csv(os.path.join(datapath, "processed", "bioassays_summary", f"bioassays_{p}.csv"), index=False)
-print("Bioassay preprocessing completed.")
+
+
+df_plot = pd.DataFrame.from_dict(
+    pathogen_aids,
+    orient="index",
+    columns=["n_bioassays", "total_cnt", "n_bioassays_100", "total_cnt_100"],
+)
+df_plot.index.name = "pathogen"
+df_plot = df_plot.reset_index()
+df_plot.to_csv(os.path.join(datapath, "processed", "bioassays_summary","summary.csv"), index=False)
+
+fig, axs = st.create_figure(2,2)
+ax = axs.next()
+ax.barh(df_plot["pathogen"], df_plot["n_bioassays"])
+st.label(ax, title = "AIDs Number", xlabel = "", ylabel = "")
+ax = axs.next()
+ax.barh(df_plot["pathogen"], df_plot["total_cnt"])
+ax.tick_params(axis="y", labelleft=False)
+st.label(ax, title = "Total compound count", xlabel = "", ylabel = "")
+ax = axs.next()
+ax.barh(df_plot["pathogen"], df_plot["n_bioassays_100"])
+st.label(ax, title = "AIDs Number (100 max)", xlabel = "", ylabel = "")
+ax = axs.next()
+ax.barh(df_plot["pathogen"], df_plot["total_cnt_100"])
+ax.tick_params(axis="y", labelleft=False)
+st.label(ax, title = "Total compound count (100 max)", xlabel = "", ylabel = "")
+plt.tight_layout()
+st.save_figure("../output/plots/00_total_aids.png")

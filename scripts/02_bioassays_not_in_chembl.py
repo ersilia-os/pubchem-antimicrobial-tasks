@@ -17,14 +17,11 @@ aids_dict = {}
 
 for pathogen in pathogens:
     # read list of aids for this pathogen
-    bioassay_aids = set(
-        pd.read_csv(
-            os.path.join(datapath, "processed", "bioassays_summary", f"bioassays_{pathogen}.csv"),
-            low_memory=False,
-        )["aid"].astype(int)
-        .tolist()
+    df_bioassay = pd.read_csv(os.path.join(datapath, "processed", "bioassays_summary", f"bioassays_{pathogen}.csv"), low_memory=False)
+    bioassay_aids = set(df_bioassay["aid"].astype(int).tolist()
     )
     print(f"Total number of AIDs for {pathogen}:", len(bioassay_aids))
+    cpd_count_all_bioassays = pd.to_numeric(df_bioassay["cnt"],errors="coerce").sum()
     
     # Extract raw bioassay information
     df = pd.read_csv(os.path.join(datapath,"raw", "bioassays", "bioassays.tsv"), sep="\t", low_memory=False)
@@ -36,12 +33,13 @@ for pathogen in pathogens:
     df = df[df["Number of Tested CIDs"]>0]
     aids_no_chembl_source = set(df.loc[~df["Source ID"].str.startswith("CHEMBL"), "AID"].tolist())
     print("Number of AIDs without CHEMBL source:", len(aids_no_chembl_source))
-
+    cpd_count_aids_no_chembl_source = df.loc[~df["Source ID"].str.startswith("CHEMBL"),"Number of Tested CIDs"].astype(float).sum()
+    
     # Extract ChEMBL assays linked to PubChem AIDs from the ChEMBL assay file
-    # obtain ChEMBL assay ids for this pathogen
     chembl = pd.read_csv(os.path.join(configpath, "chembl_mappings", f"compounds_per_assay_{pathogen.lower()}.csv"))
     chembl_ids = set(chembl["assay_chembl_id"].tolist())
     print("Number of ChEMBL assays linked to this pathogen:", len(chembl_ids))
+    cpd_count_chembl = pd.to_numeric(chembl["n_compounds"], errors="coerce").sum()
     assays = pd.read_csv(os.path.join(configpath, "chembl_mappings","assays.csv"))
     assays = assays[assays["chembl_id"].isin(chembl_ids)]
     chembl_ids_with_pubchem_source = set(assays[assays["src_assay_id"].isin(bioassay_aids)]["chembl_id"].tolist())
@@ -51,6 +49,10 @@ for pathogen in pathogens:
     aids_not_in_chembl = aids_no_chembl_source.difference(pubchem_aids_linked_in_chembl)
     print("Number of AIDs with ChEMBL source not captured by PubChem:", len(aids_in_chembl))
     print("Number of PubChem AIDS never linked to ChEMBL", len(aids_not_in_chembl))
+
+    #Keep numbers from ChEMBL assays
+    cpd_count_aids_in_chembl = df.loc[df["AID"].isin(aids_in_chembl),"Number of Tested CIDs"].astype(int).sum()
+    cpd_count_aids_not_in_chembl = df.loc[df["AID"].isin(aids_not_in_chembl),"Number of Tested CIDs"].astype(int).sum()
 
     # get mapping of PubChem AIDs linked in ChEMBL
     assays_dict = {}
@@ -104,7 +106,23 @@ for pathogen in pathogens:
     #final list of AIDS
     aids_to_use = set.union(aids_mismatched, aids_not_in_chembl_keep)
     print("Final AIDS to consider:", len(aids_to_use))
-    aids_dict[pathogen] = [len(bioassay_aids), len(aids_no_chembl_source),len(aids_not_in_chembl), len(aids_in_chembl),len(aids_to_use), len(aids_mismatched), len(aids_not_in_chembl_keep)]
+    #Keep compound counts
+    cpd_count_aids_to_use = df.loc[df["AID"].isin(aids_to_use), "Number of Tested CIDs"].astype(int).sum()
+    cpd_count_aids_mismatched = df.loc[df["AID"].isin(aids_mismatched), "Number of Tested CIDs"].astype(int).sum()
+    cpd_count_aids_not_in_chembl_keep = df.loc[df["AID"].isin(aids_not_in_chembl_keep), "Number of Tested CIDs"].astype(int).sum()
+
+    
+
+    aids_dict[pathogen] = [len(bioassay_aids), cpd_count_all_bioassays, 
+                           len(chembl_ids), cpd_count_chembl,
+                           len(aids_no_chembl_source), cpd_count_aids_no_chembl_source,
+                           len(aids_not_in_chembl), cpd_count_aids_not_in_chembl,
+                           len(aids_in_chembl), cpd_count_aids_in_chembl,
+                           len(aids_to_use), cpd_count_aids_to_use, 
+                           len(aids_mismatched), cpd_count_aids_mismatched,
+                           len(aids_not_in_chembl_keep), cpd_count_aids_not_in_chembl_keep
+                           ]
+    
     filepath = os.path.join(datapath, "processed", "bioassays_to_keep", f"aids_{pathogen.lower()}.csv")
     with open(filepath, "w", newline="") as f:
         writer = csv.writer(f)
@@ -115,7 +133,15 @@ for pathogen in pathogens:
 df_plot = pd.DataFrame.from_dict(
     aids_dict,
     orient="index",
-    columns=["bioassay_aids", "aids_no_chembl_source", "aids_not_in_chembl", "aids_in_chembl","aids_to_use", "aids_mismatched", "aids_not_in_chembl_keep"]
+    columns=["bioassay_aids", "cpd_count_bioassay_aids", 
+             "chembl_ids", "cpd_count_chembl_ids",
+             "aids_no_chembl_source", "cpd_count_no_chembl_source",
+             "aids_not_in_chembl", "cpd_count_not_in_chembl",
+             "aids_in_chembl", "cpd_count_in_chembl",
+             "aids_to_use", "cpd_count_to_use",
+             "aids_mismatched", "cpd_count_mismatched",
+             "aids_not_in_chembl_keep", "cpd_count_not_in_chembl_keep"
+             ]
 )
 
 df_plot.index.name = "pathogen"

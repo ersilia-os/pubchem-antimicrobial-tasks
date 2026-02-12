@@ -58,8 +58,7 @@ for p in pathogens:
     no_tax = no_tax[no_tax["cnt"]>100]
     print(f"No taxid info with >100 mols: {len(no_tax)} assays need manual checking")
     if len(no_tax)>0:
-        no_tax.to_csv(os.path.join(datapath, "processed", "bioassays_summary", f"bioassays_{p}_manual_check.csv"), index=False)
-    
+        no_tax.to_csv(os.path.join(datapath, "processed", "bioassays_summary", f"bioassays_{p.lower()}_manual_check.csv"), index=False)
     if os.path.exists(os.path.join(configpath, "bioassays_selected_manually", f"{p}.csv")):
         manual = pd.read_csv(os.path.join(configpath, "bioassays_selected_manually", f"{p}.csv"))
         print(f"Adding {len(manual)} manually selected assays for {p}")
@@ -71,7 +70,7 @@ for p in pathogens:
     print(p, len(bioassays_final))
     bioassays_final_100 = bioassays_final[bioassays_final["cnt"]>100]
     pathogen_aids[p]=  [len(bioassays_final), bioassays_final["cnt"].sum(),len(bioassays_final_100), bioassays_final_100["cnt"].sum()]
-    bioassays_final.to_csv(os.path.join(datapath, "processed", "bioassays_summary", f"bioassays_{p}.csv"), index=False)
+    bioassays_final.to_csv(os.path.join(datapath, "processed", "bioassays_summary", f"bioassays_{p.lower()}.csv"), index=False)
 
 
 df_plot = pd.DataFrame.from_dict(
@@ -82,21 +81,3 @@ df_plot = pd.DataFrame.from_dict(
 df_plot.index.name = "pathogen"
 df_plot = df_plot.reset_index()
 df_plot.to_csv(os.path.join(datapath, "processed", "bioassays_summary","summary.csv"), index=False)
-
-fig, axs = st.create_figure(2,2)
-ax = axs.next()
-ax.barh(df_plot["pathogen"], df_plot["n_bioassays"])
-st.label(ax, title = "AIDs Number", xlabel = "", ylabel = "")
-ax = axs.next()
-ax.barh(df_plot["pathogen"], df_plot["total_cnt"])
-ax.tick_params(axis="y", labelleft=False)
-st.label(ax, title = "Total compound count", xlabel = "", ylabel = "")
-ax = axs.next()
-ax.barh(df_plot["pathogen"], df_plot["n_bioassays_100"])
-st.label(ax, title = "AIDs Number (100 max)", xlabel = "", ylabel = "")
-ax = axs.next()
-ax.barh(df_plot["pathogen"], df_plot["total_cnt_100"])
-ax.tick_params(axis="y", labelleft=False)
-st.label(ax, title = "Total compound count (100 max)", xlabel = "", ylabel = "")
-plt.tight_layout()
-st.save_figure("../output/plots/00_total_aids.png")

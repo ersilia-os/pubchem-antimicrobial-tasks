@@ -14,11 +14,14 @@ from default import pathogens
 datapath = os.path.join(root, "..", "data")
 outpath = os.path.join(root, "..", "output")
 
-datadir = os.path.join(datapath, "processed", "extracted_bioassays")
+datadir = os.path.join(datapath, "processed", "04_extracted_bioassays")
 destdir = os.path.join(outpath, "results")
+os.makedirs(destdir, exist_ok=True)
 
 for p in pathogens:
-    aids = pd.read_csv(os.path.join(datapath,"processed","bioassays_to_keep", f"aids_{p.lower()}.csv"))["aid"].tolist()
+    aids = pd.read_csv(
+        os.path.join(datapath, "processed", "02_bioassays_to_keep", f"aids_{p.lower()}.csv")
+    )["aid"].tolist()
     pathogen_dir = os.path.join(destdir, p.lower())
     os.makedirs(pathogen_dir, exist_ok=True)
     print(p)
@@ -33,6 +36,3 @@ for p in pathogens:
             shutil.copy(src_meta, pathogen_dir)
         else:
             print(f"{a} meta assay does not exist")
-
-
-

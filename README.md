@@ -1,4 +1,3 @@
-
 # 🦠 Antimicrobial binary ML tasks from PubChem 💊
 
 Get antimicrobial tasks from [PubChem](https://pubchem.ncbi.nlm.nih.gov/) framed as binary classifications.
@@ -109,7 +108,7 @@ The scripts are numbered and when run sequentially, will generate the necessary 
 * `00_preprocess_bioassays.py`: curates the manually downloaded lists of taxonomy names associated with a pathogen and keeps the right ones. Uses the taxonomies to curate the bioassays for each pathogen associated to the right taxid or targettaxid (if both fields empty, add to a manual_check list).
 * `01_downoad_pubchem_bioassays.py`: automatically downloads the Bioassays (Data and Description) and the entire bioassays.csv file in the data/raw/bioassays folder.
 * `02_bioassays_not_in_chembl.py`: compares pubchem and chembl and keeps a list of pubchem AIDs to consider for individual dataset extraction.
-* `03_download_individual_aids.py`: downloads AIDs of less than 10k one by one. Intended for manula curation of specific datasets
+* `03_download_individual_aids.py`: downloads AIDs of less than 10k one by one. Intended for manual curation of specific datasets
 * `04_curate_bioassays.py`: batch download of data for AIDs, converted to a simple list of smiles and activity (1,0). Molecules with inconclusive activity or no SMILES are eliminated. Needs to have all PubChem Bioassays donwloaded (script 01)
 
 ## About the Ersilia Open Source Initiative

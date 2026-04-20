@@ -148,6 +148,13 @@ for pathogen in pathogens:
     df_ = df_[df_["Number of Tested CIDs"] > MIN_COMPOUNDS]
     aids_not_in_chembl_keep = set(df_["AID"].tolist())
 
+    df_[["AID", "Number of Tested CIDs"]].rename(
+        columns={"AID": "aid", "Number of Tested CIDs": "n_compounds"}
+    ).to_csv(
+        os.path.join(outpath, f"aids_not_in_chembl_{pathogen.lower()}.csv"),
+        index=False,
+    )
+
     # final list of AIDs
     aids_to_use = set.union(aids_mismatched, aids_not_in_chembl_keep)
     print("Final AIDS to consider:", len(aids_to_use))

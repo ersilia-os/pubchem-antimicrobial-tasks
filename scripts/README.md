@@ -44,6 +44,10 @@ Manual setup
   └── Per-pathogen report figures (compound counts, % selected AIDs) and cross-pathogen summary table
        → output/plots/06_{pathogen}_report.png
        → output/06_summary_table.csv
+
+07_summary_activity.py
+  └── Stacked bar chart of activity outcome counts (active, inactive, inconclusive, unspecified, chemical probe) per pathogen
+       → output/plots/07_summary_activity.png
 ```
 
 `manual_download_individual_aid.py` is a utility for downloading a single assay via the PubChem REST API; it is not part of the main batch pipeline.
@@ -202,6 +206,28 @@ Generates per-pathogen report figures and a cross-pathogen summary table compari
 | `pct_not_in_chembl` | `n_not_in_chembl` as a percentage of `n_bioassay_aids` |
 | `pct_not_in_chembl_min` | `n_not_in_chembl_min` as a percentage of `n_bioassay_aids` |
 | `pct_mismatched` | `n_mismatched` as a percentage of `n_bioassay_aids` |
+
+---
+
+### 07_summary_activity.py
+
+Aggregates activity outcome counts from the per-AID summary CSVs produced by script 04 and plots a stacked bar chart showing the breakdown per pathogen.
+
+**Inputs**
+- `data/processed/04_extracted_bioassays/{pathogen}/summary.csv` — per-AID activity counts from script 04
+
+**Outputs**
+- `output/plots/07_summary_activity.png` — stacked bar chart with one bar per pathogen, broken down by activity outcome
+
+**Activity categories (stacked order)**
+
+| Category | Encoded value | Colour |
+|---|---|---|
+| Active | `1` | mint |
+| Inactive | `0` | purple |
+| Inconclusive | `-1` | orange |
+| Unspecified | `2` | gray |
+| Chemical probe | `3` | yellow |
 
 ---
 

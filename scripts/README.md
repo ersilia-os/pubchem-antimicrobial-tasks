@@ -13,7 +13,8 @@ Pathogen list and shared constants (`MIN_COMPOUNDS`, `CHEMBL_MISMATCH_THRESHOLD`
 ```
 Manual setup
   ├── Download taxonomy & bioassay CSVs from PubChem → data/config/taxonomy_raw/, data/config/bioassays_summary/
-  └── Obtain ChEMBL assay mappings → data/config/chembl_mappings/
+  ├── Obtain ChEMBL assay mappings → data/config/chembl_mappings/
+  └── Download ChEMBL target dictionary → data/config/target_dictionary.csv
 
 00_preprocess_bioassays.py
   └── Filter bioassays by pathogen taxonomy, keep assays with ≥MIN_COMPOUNDS compounds
@@ -48,6 +49,15 @@ Manual setup
 07_summary_activity.py
   └── Stacked bar chart of activity outcome counts (active, inactive, inconclusive, unspecified, chemical probe) per pathogen
        → output/plots/07_summary_activity.png
+
+08_annotate_bioassays.py
+  └── Annotate each AID with target type (ChEMBL + PubChem) and activity type (PubChem readout columns)
+       → data/processed/08_annotated_assays/summaries.csv
+       → data/processed/08_annotated_assays/summaries_organism.csv
+
+09_filter_bioassays_to_model.py
+  └── Apply quality thresholds, label assays A/B, flag non-antimicrobial counter-screens
+       → data/processed/09_bioassays_to_model/bioassays_to_model.csv
 ```
 
 `manual_download_individual_aid.py` is a utility for downloading a single assay via the PubChem REST API; it is not part of the main batch pipeline.
@@ -228,6 +238,95 @@ Aggregates activity outcome counts from the per-AID summary CSVs produced by scr
 | Inconclusive | `-1` | orange |
 | Unspecified | `2` | gray |
 | Chemical probe | `3` | yellow |
+
+---
+
+### 08_annotate_bioassays.py
+
+Annotates all selected AIDs with target type and activity type information from two complementary sources: ChEMBL curated metadata (for assays with a ChEMBL counterpart) and PubChem bioassay summary data (for all assays). Produces a full annotated table and an organism-level subset.
+
+**Inputs**
+- `data/processed/04_extracted_bioassays/{pathogen}/summary.csv` — per-AID compound counts from script 04
+- `data/processed/02_bioassays_to_keep/chembl_assays_in_pubchem_{code}.csv` — ChEMBL–PubChem AID mappings from script 02
+- `data/config/chembl_mappings/assays.csv` — ChEMBL assay table (includes `tid`)
+- `data/config/target_dictionary.csv` — ChEMBL target dictionary (`tid` → `target_type`)
+- `data/config/bioassays_summary/PubChem_bioassay_{pathogen}.csv` — PubChem bioassay summaries (manual download)
+- `output/results/{pathogen}/{aid}_meta.csv` — assay readout column headers from script 05
+
+**Outputs**
+- `data/processed/08_annotated_assays/summaries.csv` — all AIDs annotated
+- `data/processed/08_annotated_assays/summaries_organism.csv` — organism-level AIDs only, with activity type
+
+**Logic**
+
+*Target type classification* (`single_protein / organism / other / None`):
+- ChEMBL: joins `assays.csv` → `target_dictionary.csv` via `tid`; maps `SINGLE PROTEIN` → `single_protein`, `ORGANISM` / `NON-MOLECULAR` → `organism`, everything else → `other`. `None` if no ChEMBL match.
+- PubChem: `single_protein` if `protacxns` or `geneids` fields are populated, otherwise `organism`.
+
+*Organism filter*: keeps AIDs where PubChem = `organism` AND (ChEMBL = `organism` OR ChEMBL = `None`).
+
+*Activity type classification* (organism assays only, from `_meta.csv` column headers):
+
+| Category | Keywords matched |
+|---|---|
+| `ic50` | ic50, ic90 |
+| `ec50` | ec50, ac50, pac50, pic50 |
+| `ki` | ki (word boundary) |
+| `kd` | kd (word boundary) |
+| `mic` | mic (word boundary) |
+| `inhibition` | inhibition, pctinhib, pct inh, % inhib, % activ, growth inhib, percent_response, percentresponse, % survival, inhib_ |
+| `fluorescence` | fluorescence |
+| `luminescence` | luminescence |
+| `absorbance` | absorbance |
+| `doseresponse` | hill slope, hill_slope, dose-response, dose_response, absac, potency |
+| `other` | no keyword matched |
+
+---
+
+### 09_filter_bioassays_to_model.py
+
+Filters the organism-level annotated assays to a modelling-ready table. Drops metadata columns, computes active ratio, assigns quality labels A/B, and flags non-antimicrobial counter-screens.
+
+**Input**
+- `data/processed/08_annotated_assays/summaries_organism.csv` — from script 08
+
+**Output**
+- `data/processed/09_bioassays_to_model/bioassays_to_model.csv`
+
+**Logic**
+
+*Active ratio:* `ratio = round(actives / (actives + inactives), 3)`. `NaN` if denominator is zero.
+
+*Quality labels:*
+
+| Label | Condition |
+|---|---|
+| `A` | Large class-balanced dataset: `cids ≥ 1000`, `actives ≥ 50`, `ratio < 0.5` |
+| `B` | Active-enriched dataset: `actives ≥ 100`, `ratio ≥ 0.5` |
+| discarded | Neither condition met |
+
+Assays that do not meet either condition are removed.
+
+*`keep` flag:* `False` for AIDs manually identified as counter-screens or non-antimicrobial assays (AID 2327, 588517, 588335). `True` for all others.
+
+**Output columns**
+
+| Column | Description |
+|---|---|
+| `code` | Pathogen code |
+| `aid` | PubChem Assay ID |
+| `cids` | Number of unique compounds |
+| `actives` | Number of active compounds |
+| `inactives` | Number of inactive compounds |
+| `ratio` | Fraction of actives: `actives / (actives + inactives)` |
+| `label` | Quality label: `A` or `B` |
+| `keep` | `False` for manually flagged non-antimicrobial assays |
+| `activity_type_pubchem` | Readout type inferred from column headers (script 08) |
+| `target_type_chembl` | Target classification from ChEMBL (`single_protein / organism / other`) |
+| `target_type_pubchem` | Target classification from PubChem (`single_protein / organism`) |
+| `pubchem_name` | Assay name (`aidname`) |
+| `pubchem_description` | Assay description (`aiddesc`) |
+| `pubchem_readout_columns` | Non-standard column names from `_meta.csv`, pipe-separated |
 
 ---
 

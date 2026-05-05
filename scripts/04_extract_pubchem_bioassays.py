@@ -71,7 +71,7 @@ def _smiles_to_inchikey(s):
 
 
 def clean_bioassay_csv(inputpath):
-    df = pd.read_csv(inputpath)
+    df = pd.read_csv(inputpath, low_memory=False)
     is_meta = df["PUBCHEM_RESULT_TAG"].fillna("").astype(str).str.startswith("RESULT")
     meta_df = df.loc[is_meta].copy()
     results_df = df.loc[~is_meta].copy()

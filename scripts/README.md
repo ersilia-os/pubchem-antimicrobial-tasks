@@ -14,7 +14,7 @@ Pathogen list and shared constants (`MIN_COMPOUNDS`, `CHEMBL_MISMATCH_THRESHOLD`
 Manual setup
   ├── Download taxonomy & bioassay CSVs from PubChem → data/config/taxonomy_raw/, data/config/bioassays_summary/
   ├── Obtain ChEMBL assay mappings → data/config/chembl_mappings/
-  └── Download ChEMBL target dictionary → data/config/target_dictionary.csv
+  └── Download ChEMBL target dictionary → data/config/chembl_mappings/target_dictionary.csv
 
 00_preprocess_bioassays.py
   └── Filter bioassays by pathogen taxonomy, keep assays with ≥MIN_COMPOUNDS compounds
@@ -39,7 +39,7 @@ Manual setup
 
 05_curate_bioassays.py
   └── Copy final selected assay files to output directory
-       → output/results/{pathogen}/{aid}.csv
+       → output/05_results/{pathogen}/{aid}.csv
 
 06_plot_results.py
   └── Per-pathogen report figures (compound counts, % selected AIDs) and cross-pathogen summary table
@@ -77,6 +77,7 @@ Curates taxonomy data and filters raw bioassay summaries to retain assays releva
 - `data/processed/00_taxonomy_processed/taxonomy_{pathogen}.csv`
 - `data/processed/00_bioassays_summary/bioassays_{pathogen}.csv` — filtered assay lists
 - `data/processed/00_bioassays_summary/summary.csv`
+- `output/plots/00_total_aids.png` — bar charts of assay/compound counts before and after the ≥MIN_COMPOUNDS filter
 
 **Logic**
 1. Remove phage/virus entries from taxonomy; retain bacteria, fungi, and parasites.
@@ -92,7 +93,7 @@ Downloads `bioassays.tsv.gz` from the NCBI FTP server and unpacks it. Skips the 
 
 **Usage**
 ```bash
-python scripts/01_download_bioassays_tsv.py --out data/raw/bioassays
+python scripts/01_download_bioassays_tsv.py
 ```
 
 **Output**
@@ -112,9 +113,12 @@ Compares PubChem assays against ChEMBL to identify new or significantly larger a
 
 **Outputs**
 - `data/processed/02_bioassays_to_keep/aids_{pathogen}.csv` — final AID selection
+- `data/processed/02_bioassays_to_keep/aids_not_in_chembl_{pathogen}.csv` — AIDs with no ChEMBL counterpart
 - `data/processed/02_bioassays_to_keep/summary.csv` — per-pathogen statistics
 - `data/processed/02_bioassays_to_keep/chembl_assays_in_pubchem_{code}.csv` — named using ChEMBL code (e.g. `mtuberculosis`)
 - `data/processed/02_bioassays_to_keep/chembl_cpds_mismatch_{pathogen}.csv`
+- `output/plots/02_aids_to_keep.png` — bar chart of selected AIDs per pathogen
+- `output/plots/02_chembl_pubchem_overview.png` — scatter/bar overview comparing PubChem vs ChEMBL counts
 
 **Selection criteria** — an assay is kept if it meets **either** of:
 - Not present in ChEMBL and has ≥`MIN_COMPOUNDS` compounds.
@@ -128,9 +132,7 @@ Downloads only the PubChem Data ZIP blocks that contain the AIDs selected by scr
 
 **Usage**
 ```bash
-python scripts/03_download_data_zips.py \
-    --aids-dir data/processed/02_bioassays_to_keep \
-    --out data/raw/03_data_zips
+python scripts/03_download_data_zips.py
 ```
 
 **Inputs**
@@ -249,9 +251,9 @@ Annotates all selected AIDs with target type and activity type information from 
 - `data/processed/04_extracted_bioassays/{pathogen}/summary.csv` — per-AID compound counts from script 04
 - `data/processed/02_bioassays_to_keep/chembl_assays_in_pubchem_{code}.csv` — ChEMBL–PubChem AID mappings from script 02
 - `data/config/chembl_mappings/assays.csv` — ChEMBL assay table (includes `tid`)
-- `data/config/target_dictionary.csv` — ChEMBL target dictionary (`tid` → `target_type`)
+- `data/config/chembl_mappings/target_dictionary.csv` — ChEMBL target dictionary (`tid` → `target_type`)
 - `data/config/bioassays_summary/PubChem_bioassay_{pathogen}.csv` — PubChem bioassay summaries (manual download)
-- `output/results/{pathogen}/{aid}_meta.csv` — assay readout column headers from script 05
+- `output/05_results/{pathogen}/{aid}_meta.csv` — assay readout column headers from script 05
 
 **Outputs**
 - `data/processed/08_annotated_assays/summaries.csv` — all AIDs annotated
@@ -307,7 +309,17 @@ Filters the organism-level annotated assays to a modelling-ready table. Drops me
 
 Assays that do not meet either condition are removed.
 
-*`keep` flag:* `False` for AIDs manually identified as counter-screens or non-antimicrobial assays (AID 2327, 588517, 588335). `True` for all others.
+*`keep` flag:* `False` for AIDs manually identified as counter-screens or non-antimicrobial assays. `True` for all others. Flagged AIDs:
+
+| AID | Reason | Pathogen |
+|---|---|---|
+| 2327 | Mammalian fibroblast toxicity counter-screen | C. albicans |
+| 588517 | Compound fluorescence interference counter-screen | C. albicans |
+| 588335 | Biochemical artifact counter-screen | M. tuberculosis |
+| 527 | Quorum sensing / virulence pathway inhibition, not bacterial killing | S. aureus |
+| 1159583 | Hypoxia-regulated fluorescent biosensor assay, not bacterial killing | M. tuberculosis |
+| 488966 | Bacterial capsule biogenesis / virulence factor, not growth inhibition | E. coli |
+| 463173 | Teichoic acid synthesis / virulence factor, non-essential for in vitro viability | S. aureus |
 
 **Output columns**
 
@@ -337,8 +349,8 @@ Utility for downloading and processing a single PubChem assay via the REST API (
 **Hardcoded defaults:** AID 743156, pathogen `campylobacter`.
 
 **Outputs**
-- `output/results/{pathogen}/{aid}.csv`
-- `output/results/{pathogen}/{aid}_meta.csv`
+- `output/05_results/{pathogen}/{aid}.csv`
+- `output/05_results/{pathogen}/{aid}_meta.csv`
 
 ---
 

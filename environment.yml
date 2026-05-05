@@ -1,0 +1,15 @@
+name: pamt
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pandas
+  - requests
+  - beautifulsoup4
+  - tqdm
+  - matplotlib
+  - rdkit
+  - pip
+  - pip:
+    - stylia

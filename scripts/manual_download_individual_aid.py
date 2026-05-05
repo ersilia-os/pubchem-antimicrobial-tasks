@@ -23,13 +23,13 @@ aid = 743156
 
 assert p in pathogens
 
-if not os.path.exists(os.path.join(outpath,"results", p)):
-    os.mkdir(os.path.join(outpath,"results", p))
+if not os.path.exists(os.path.join(outpath,"05_results", p)):
+    os.mkdir(os.path.join(outpath,"05_results", p))
 
 print(aid)
 c = PubChemBioAssayRecord(aid)
 c.save_json(tmp_dir)
 c = PubChemBioAssayJsonConverter(tmp_dir, f"PUBCHEM{aid}.json")
 df = c.get_all_results()
-c.save_df(df, os.path.join(outpath, "results", f"{p.lower()}"))
-c.get_description(os.path.join(outpath, "results", f"{p.lower()}"))
+c.save_df(df, os.path.join(outpath, "05_results", f"{p.lower()}"))
+c.get_description(os.path.join(outpath, "05_results", f"{p.lower()}"))

@@ -26,6 +26,8 @@ for p in pathogens:
     print(p, len(df))
     keep = []
     for t in df["Taxonomy_Name"].to_list():
+        if pd.isna(t):
+            raise ValueError(f"NaN found in Taxonomy_Name for {p} — check the raw taxonomy file.")
         if "phage" in t.lower() or "virus" in t.lower():
             continue
         if "_" in p:
@@ -44,7 +46,8 @@ for p in pathogens:
     tax = pd.read_csv(os.path.join(taxpath, f"taxonomy_{p}.csv"))
     bioassays = pd.read_csv(os.path.join(configpath, "bioassays_summary", f"PubChem_bioassay_{p}.csv"), low_memory=False)
     print(p, len(bioassays))
-    bioassays1 = bioassays[bioassays["targettaxid"].isin(tax["Taxonomy_ID"].tolist())]
+    valid_target_ids = set(tax["Taxonomy_ID"].astype(float))
+    bioassays1 = bioassays[bioassays["targettaxid"].isin(valid_target_ids)]
     print("Bioassays1:", len(bioassays1))
 
     # For rows without targettaxid, check the pipe-separated `taxids` field.
@@ -62,7 +65,7 @@ for p in pathogens:
 
     # for rows without targettax id nor taxid, keep them for manual checking
     no_tax = bioassays[has_no_target & bioassays["taxids"].isna()]
-    no_tax = no_tax[no_tax["cnt"] > MIN_COMPOUNDS]
+    no_tax = no_tax[no_tax["cnt"] >= MIN_COMPOUNDS]
     print(f"No taxid info with >100 mols: {len(no_tax)} assays need manual checking")
     if len(no_tax)>0:
         no_tax.to_csv(os.path.join(bioassaypath, f"bioassays_{p.lower()}_manual_check.csv"), index=False)
@@ -75,7 +78,7 @@ for p in pathogens:
     else:
         bioassays_final = pd.concat([bioassays1, bioassays2], axis=0).drop_duplicates()
     print(p, len(bioassays_final))
-    bioassays_final_100 = bioassays_final[bioassays_final["cnt"] > MIN_COMPOUNDS]
+    bioassays_final_100 = bioassays_final[bioassays_final["cnt"] >= MIN_COMPOUNDS]
     pathogen_aids[p]=  [len(bioassays_final), bioassays_final["cnt"].sum(),len(bioassays_final_100), bioassays_final_100["cnt"].sum()]
     bioassays_final.to_csv(os.path.join(bioassaypath, f"bioassays_{p.lower()}.csv"), index=False)
 

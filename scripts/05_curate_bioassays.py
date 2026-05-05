@@ -15,7 +15,7 @@ datapath = os.path.join(root, "..", "data")
 outpath = os.path.join(root, "..", "output")
 
 datadir = os.path.join(datapath, "processed", "04_extracted_bioassays")
-destdir = os.path.join(outpath, "results")
+destdir = os.path.join(outpath, "05_results")
 os.makedirs(destdir, exist_ok=True)
 
 for p in pathogens:

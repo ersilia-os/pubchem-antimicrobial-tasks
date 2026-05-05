@@ -21,9 +21,9 @@ Inputs:
     data/processed/04_extracted_bioassays/{pathogen}/summary.csv
     data/processed/02_bioassays_to_keep/chembl_assays_in_pubchem_{code}.csv
     data/config/chembl_mappings/assays.csv
-    data/config/target_dictionary.csv
+    data/config/chembl_mappings/target_dictionary.csv
     data/config/bioassays_summary/PubChem_bioassay_{pathogen}.csv
-    output/results/{pathogen}/{aid}_meta.csv
+    output/05_results/{pathogen}/{aid}_meta.csv
 
 Outputs:
     data/processed/08_annotated_assays/summaries.csv          (all AIDs, annotated)
@@ -129,7 +129,7 @@ def annotate_assay_types(df: pd.DataFrame) -> pd.DataFrame:
 
     # --- load target_dictionary: tid → target_type ---
     tid_to_target_type: dict[int, str] = {}
-    target_dict_path = ROOT / "data" / "config" / "target_dictionary.csv"
+    target_dict_path = ROOT / "data" / "config" / "chembl_mappings" / "target_dictionary.csv"
     if target_dict_path.exists():
         print("Loading target_dictionary.csv…")
         for _, row in pd.read_csv(target_dict_path, usecols=["tid", "target_type"]).iterrows():
@@ -221,7 +221,7 @@ def annotate_activity_types(df: pd.DataFrame) -> pd.DataFrame:
     for _, row in df.iterrows():
         pathogen = row["pathogen"]
         aid = int(row["aid"])
-        meta_path = ROOT / "output" / "results" / pathogen / f"{aid}_meta.csv"
+        meta_path = ROOT / "output" / "05_results" / pathogen / f"{aid}_meta.csv"
 
         if not meta_path.exists():
             readout_cols_col.append(None)

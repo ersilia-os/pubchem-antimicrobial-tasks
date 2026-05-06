@@ -23,7 +23,8 @@ MIN_CPDS_CONDITION_A = 1000
 MIN_POSITIVES_CONDITION_A = 50
 MIN_POSITIVES_CONDITION_B = 100
 
-# AIDs manually identified as counter-screens or non-antimicrobial assays
+# AIDs manually identified as counter-screens, non-antimicrobial, redundant, or sensitization assays.
+# Rows matching these AIDs are removed from the output.
 _NON_ANTIMICROBIAL_AIDS = {
     2327,    # mammalian fibroblast toxicity counter-screen (calbicans)
     588517,  # compound fluorescence interference counter-screen (calbicans)
@@ -32,6 +33,17 @@ _NON_ANTIMICROBIAL_AIDS = {
     1159583, # hypoxia-regulated fluorescent biosensor assay, not bacterial killing (mtuberculosis)
     488966,  # bacterial capsule biogenesis / virulence factor, not growth inhibition (ecoli)
     463173,  # teichoic acid synthesis / virulence factor, non-essential for in vitro viability (saureus)
+    # 96-hour duplicates — 48-hour counterpart kept instead
+    504834,  # 96h duplicate of 504832 (pfalciparum delayed death)
+    504848,  # 96h duplicate of 504850 (pfalciparum delayed death confirmation)
+    488745,  # 96h duplicate of 488752 (pfalciparum delayed death qHTS)
+    # sensitization assays — not direct antimicrobial killing
+    434955,  # sensitizes M. tuberculosis to beta-lactam antibiotics
+    434987,  # selectively sensitizes M. tuberculosis to beta-lactam antibiotics
+    # redundant Sybr green Dd2 mechanistic variants — 1159566 (standard Dd2) kept
+    1159568, # Dd2 DryPowder Set9, subset of 1159566
+    1159570, # 3D7-ScDHODH engineered strain, mechanistic follow-up
+    1159571, # PfNITD609-resistant ATP4 D1247Y engineered strain, mechanistic follow-up
 }
 
 _DROP_COLS = [

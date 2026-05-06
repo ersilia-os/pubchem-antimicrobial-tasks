@@ -320,6 +320,14 @@ Assays that do not meet either condition are removed.
 | 1159583 | Hypoxia-regulated fluorescent biosensor assay, not bacterial killing | M. tuberculosis |
 | 488966 | Bacterial capsule biogenesis / virulence factor, not growth inhibition | E. coli |
 | 463173 | Teichoic acid synthesis / virulence factor, non-essential for in vitro viability | S. aureus |
+| 504834 | 96-hour duplicate of AID 504832 (48-hour counterpart kept) | P. falciparum |
+| 504848 | 96-hour duplicate of AID 504850 (48-hour counterpart kept) | P. falciparum |
+| 488745 | 96-hour duplicate of AID 488752 (48-hour counterpart kept) | P. falciparum |
+| 434955 | Sensitization to beta-lactam antibiotics, not direct bacterial killing | M. tuberculosis |
+| 434987 | Sensitization to beta-lactam antibiotics, not direct bacterial killing | M. tuberculosis |
+| 1159568 | Redundant Dd2 Sybr green subset (Set9); AID 1159566 kept | P. falciparum |
+| 1159570 | Redundant 3D7-ScDHODH engineered-strain mechanistic follow-up; AID 1159566 kept | P. falciparum |
+| 1159571 | Redundant PfNITD609-resistant ATP4 engineered-strain mechanistic follow-up; AID 1159566 kept | P. falciparum |
 
 **Output columns**
 

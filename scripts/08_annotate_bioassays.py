@@ -221,7 +221,7 @@ def annotate_activity_types(df: pd.DataFrame) -> pd.DataFrame:
     for _, row in df.iterrows():
         pathogen = row["pathogen"]
         aid = int(row["aid"])
-        meta_path = ROOT / "output" / "05_results" / pathogen / f"{aid}_meta.csv"
+        meta_path = ROOT / "output" / "05_results" / pathogen.lower() / f"{aid}_meta.csv"
 
         if not meta_path.exists():
             readout_cols_col.append(None)

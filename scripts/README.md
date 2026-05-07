@@ -18,7 +18,8 @@ Manual setup
 
 00_preprocess_bioassays.py
   └── Filter bioassays by pathogen taxonomy, keep assays with ≥MIN_COMPOUNDS compounds
-       → data/processed/bioassays_summary/bioassays_{pathogen}.csv
+       → data/processed/00_bioassays_summary/bioassays_{pathogen}.csv
+       → output/00_preprocess_bioassays/00_total_aids.png
 
 01_download_bioassays_tsv.py
   └── Download bioassays.tsv metadata file from NCBI FTP
@@ -38,17 +39,17 @@ Manual setup
        → data/processed/04_unique_cids/
 
 05_curate_bioassays.py
-  └── Copy final selected assay files to output directory
-       → output/05_results/{pathogen}/{aid}.csv
+  └── Copy final selected assay files to output directory; generate per-pathogen report figures and cross-pathogen summary table
+       → output/05_curate_bioassays/{pathogen}/{aid}.csv
+       → output/05_curate_bioassays/{pathogen}/{aid}_meta.csv
+       → output/05_curate_bioassays/{pathogen}/05_{pathogen}_report.png
+       → output/05_curate_bioassays/05_summary_table.csv
 
-06_plot_results.py
-  └── Per-pathogen report figures (compound counts, % selected AIDs) and cross-pathogen summary table
-       → output/plots/06_{pathogen}_report.png
-       → output/06_summary_table.csv
-
-07_summary_activity.py
-  └── Stacked bar chart of activity outcome counts (active, inactive, inconclusive, unspecified, chemical probe) per pathogen
-       → output/plots/07_summary_activity.png
+06_annotate_selected_bioassays.py
+  └── Annotate each selected AID with target type, ChEMBL ID, and compound counts; generate summary plots
+       → output/06_annotate_selected_bioassays/06_summary.csv
+       → output/06_annotate_selected_bioassays/06_activity_outcomes.png
+       → output/06_annotate_selected_bioassays/06_target_types.png
 
 08_annotate_bioassays.py
   └── Annotate each AID with target type (ChEMBL + PubChem) and activity type (PubChem readout columns)
@@ -69,15 +70,9 @@ Manual setup
 Curates taxonomy data and filters raw bioassay summaries to retain assays relevant to each pathogen.
 
 **Inputs**
-- `data/config/taxonomy_raw/PubChem_taxonomy_{pathogen}.csv` — raw taxonomy files (manual download)
-- `data/config/bioassays_summary/PubChem_bioassay_{pathogen}.csv` — raw bioassay summaries (manual download)
-- `data/config/bioassays_selected_manually/{pathogen}.csv` — optional manually curated inclusions
-
-**Outputs**
-- `data/processed/00_taxonomy_processed/taxonomy_{pathogen}.csv`
-- `data/processed/00_bioassays_summary/bioassays_{pathogen}.csv` — filtered assay lists
-- `data/processed/00_bioassays_summary/summary.csv`
-- `output/plots/00_total_aids.png` — bar charts of assay/compound counts before and after the ≥MIN_COMPOUNDS filter
+- `data/config/taxonomy_raw/PubChem_taxonomy_{pathogen}.csv` — raw taxonomy files (manual download from PubChem interface)
+- `data/config/bioassays_summary/PubChem_bioassay_{pathogen}.csv` — raw bioassay summaries (manual download from PubChem interface)
+- `data/config/bioassays_selected_manually/{pathogen}.csv` — optional manually curated inclusions (datasets that are relevant but not selected from the interface)
 
 **Logic**
 1. Remove phage/virus entries from taxonomy; retain bacteria, fungi, and parasites.
@@ -85,40 +80,38 @@ Curates taxonomy data and filters raw bioassay summaries to retain assays releva
 3. Retain assays with ≥`MIN_COMPOUNDS` compounds; flag assays with no taxonomy info for manual review.
 4. Optionally merge manually selected assays.
 
+**Outputs**
+- `data/processed/00_taxonomy_processed/taxonomy_{pathogen}.csv`
+- `data/processed/00_bioassays_summary/bioassays_{pathogen}.csv`
+- `data/processed/00_bioassays_summary/summary.csv`
+- `output/00_preprocess_bioassays/00_total_aids.png` — bar charts of AID counts and compound counts, with and without the ≥`MIN_COMPOUNDS` filter
+
 ---
 
 ### 01_download_bioassays_tsv.py
 
-Downloads `bioassays.tsv.gz` from the NCBI FTP server and unpacks it. Skips the download if the file already exists.
-
-**Usage**
-```bash
-python scripts/01_download_bioassays_tsv.py
-```
-
-**Output**
-- `data/raw/01_bioassays/bioassays.tsv` — assay metadata for all PubChem bioassays (AID, Source ID, compound counts)
+Downloads `bioassays.tsv.gz` from the NCBI FTP server and unpacks it, delivering the assay metadata for all PubChem bioassays (AID, Source ID, compound counts). Skips the download if the file already exists.
 
 ---
 
 ### 02_bioassays_not_in_chembl.py
 
-Compares PubChem assays against ChEMBL to identify new or significantly larger assays, avoiding duplication with the ChEMBL pipeline. `bioassays.tsv` is loaded once before the pathogen loop.
+Compares PubChem assays against ChEMBL to identify new or significantly larger assays, avoiding duplication with the ChEMBL pipeline.
 
 **Inputs**
 - `data/processed/00_bioassays_summary/bioassays_{pathogen}.csv` — from script 00
 - `data/raw/01_bioassays/bioassays.tsv` — from script 01
-- `data/config/chembl_mappings/assays.csv` — ChEMBL–PubChem AID mappings
-- `data/config/chembl_mappings/compounds_per_assay_{pathogen}.csv` — ChEMBL compound counts per assay
+- `data/config/chembl_mappings/assays.csv` — ChEMBL–PubChem AID mappings, obtained from the [chembl-antimicrobial-tasks](https://github.com/ersilia-os/chembl-antimicrobial-tasks) repository
+- `data/config/chembl_mappings/compounds_per_assay_{pathogen}.csv` — ChEMBL compound counts per assay, obtained from the [chembl-antimicrobial-tasks](https://github.com/ersilia-os/chembl-antimicrobial-tasks) repository
 
 **Outputs**
 - `data/processed/02_bioassays_to_keep/aids_{pathogen}.csv` — final AID selection
 - `data/processed/02_bioassays_to_keep/aids_not_in_chembl_{pathogen}.csv` — AIDs with no ChEMBL counterpart
 - `data/processed/02_bioassays_to_keep/summary.csv` — per-pathogen statistics
-- `data/processed/02_bioassays_to_keep/chembl_assays_in_pubchem_{code}.csv` — named using ChEMBL code (e.g. `mtuberculosis`)
-- `data/processed/02_bioassays_to_keep/chembl_cpds_mismatch_{pathogen}.csv`
-- `output/plots/02_aids_to_keep.png` — bar chart of selected AIDs per pathogen
-- `output/plots/02_chembl_pubchem_overview.png` — scatter/bar overview comparing PubChem vs ChEMBL counts
+- `data/processed/02_bioassays_to_keep/chembl_assays_in_pubchem_{pathogen_code}.csv` — ChEMBL assays with PubChem counterpart
+- `data/processed/02_bioassays_to_keep/chembl_cpds_mismatch_{pathogen}.csv` — Assays with mismatched data between ChEMBL and PubChem
+- `output/02_bioassays_not_in_chembl/02_aids_to_keep.png` — bar chart of selected AIDs per pathogen
+- `output/02_bioassays_not_in_chembl/02_chembl_pubchem_overview.png` — scatter/bar overview comparing PubChem vs ChEMBL counts
 
 **Selection criteria** — an assay is kept if it meets **either** of:
 - Not present in ChEMBL and has ≥`MIN_COMPOUNDS` compounds.
@@ -128,20 +121,7 @@ Compares PubChem assays against ChEMBL to identify new or significantly larger a
 
 ### 03_download_data_zips.py
 
-Downloads only the PubChem Data ZIP blocks that contain the AIDs selected by script 02. Each block covers 1000 AIDs (e.g. `0743001_0744000.zip` contains AIDs 743001–744000). Already-complete files are skipped; partial files are resumed.
-
-**Usage**
-```bash
-python scripts/03_download_data_zips.py
-```
-
-**Inputs**
-- `data/processed/02_bioassays_to_keep/aids_*.csv` — from script 02
-
-**Output**
-- `data/raw/03_data_zips/` — ZIP blocks covering only the selected AIDs
-
-**Features:** targeted block selection, resumable downloads, parallel workers, exponential backoff retries.
+Downloads only the PubChem Data ZIP blocks that contain the AIDs selected by script 02. Each block covers 1000 AIDs (e.g. `0743001_0744000.zip` contains AIDs 743001–744000). Designed to save download time and disk space
 
 ---
 
@@ -158,44 +138,32 @@ Extracts and cleans the selected assay CSVs from the downloaded ZIP blocks, then
 - `data/processed/04_extracted_bioassays/{pathogen}/{aid}.csv` — cleaned assay data
 - `data/processed/04_extracted_bioassays/{pathogen}/{aid}_meta.csv` — assay metadata
 - `data/processed/04_extracted_bioassays/{pathogen}/summary.csv` — per-AID compound counts
-- `data/processed/04_unique_cids/unique_cids_{pathogen}.csv`
-- `data/processed/04_unique_cids/unique_cids_all_pathogens.csv`
-- `data/processed/04_unique_cids/summary.csv`
+- `data/processed/04_unique_cids/unique_cids_{pathogen}.csv` — list of unique CIDs (compound identifier) selected per pathogen
+- `data/processed/04_unique_cids/unique_cids_all_pathogens.csv` — list of unique CIDs (compound identifier) selected across all pathogens
+- `data/processed/04_unique_cids/summary.csv` — summary of number of compounds and assays selected per pathogen
 
 **Cleaned CSV columns:** `sid`, `cid`, `smiles`, `inchikey`, `activity`
 
 Activity encoding: `1` active, `0` inactive, `-1` inconclusive, `2` unspecified, `3` chemical probe.
 
-SMILES are converted to InChIKeys via RDKit for normalisation.
-
 ---
 
 ### 05_curate_bioassays.py
 
-Final step: copies the selected assay files to the output directory, ready for ML task creation.
+Copies the selected assay files to the output directory, then generates per-pathogen report figures and a cross-pathogen summary table comparing PubChem and ChEMBL datasets. Needs to have the [chembl-antimicrobial-tasks](https://github.com/ersilia-os/chembl-antimicrobial-tasks) cloned in the same root as this repository.
 
 **Inputs**
 - `data/processed/02_bioassays_to_keep/aids_{pathogen}.csv` — from script 02
-- `data/processed/04_extracted_bioassays/{pathogen}/` — from script 04
-
-**Outputs**
-- `output/05_results/{pathogen}/{aid}.csv`
-- `output/05_results/{pathogen}/{aid}_meta.csv`
-
----
-
-### 06_plot_results.py
-
-Generates per-pathogen report figures and a cross-pathogen summary table comparing PubChem and ChEMBL datasets. ChEMBL InChIKeys are computed from SMILES on the first run and cached to avoid recomputation.
-
-**Inputs**
 - `data/processed/02_bioassays_to_keep/summary.csv` — from script 02
+- `data/processed/04_extracted_bioassays/{pathogen}/` — from script 04
 - `data/processed/04_unique_cids/unique_cids_{pathogen}.csv` — from script 04
 - `../../chembl-antimicrobial-tasks/output/{code}/20_all_smiles.csv` — ChEMBL SMILES (companion repo)
 
 **Outputs**
-- `output/plots/06_{pathogen}_report.png` — per-pathogen figure (Panel A: compound counts; Panel B: % selected AIDs)
-- `output/06_summary_table.csv` — cross-pathogen summary
+- `output/05_curate_bioassays/{pathogen}/{aid}.csv`
+- `output/05_curate_bioassays/{pathogen}/{aid}_meta.csv`
+- `output/05_curate_bioassays/{pathogen}/05_{pathogen}_report.png` — per-pathogen figure (Panel A: compound counts; Panel B: % selected AIDs)
+- `output/05_curate_bioassays/05_summary_table.csv` — cross-pathogen summary
 
 **Figure panels**
 - Panel A: bar chart of unique compound counts for ChEMBL, all PubChem (non-unique across assays), and novel PubChem (selected assays only).
@@ -221,144 +189,54 @@ Generates per-pathogen report figures and a cross-pathogen summary table compari
 
 ---
 
-### 07_summary_activity.py
+### 06_annotate_selected_bioassays.py
 
-Aggregates activity outcome counts from the per-AID summary CSVs produced by script 04 and plots a stacked bar chart showing the breakdown per pathogen.
-
-**Inputs**
-- `data/processed/04_extracted_bioassays/{pathogen}/summary.csv` — per-AID activity counts from script 04
-
-**Outputs**
-- `output/plots/07_summary_activity.png` — stacked bar chart with one bar per pathogen, broken down by activity outcome
-
-**Activity categories (stacked order)**
-
-| Category | Encoded value | Colour |
-|---|---|---|
-| Active | `1` | mint |
-| Inactive | `0` | purple |
-| Inconclusive | `-1` | orange |
-| Unspecified | `2` | gray |
-| Chemical probe | `3` | yellow |
-
----
-
-### 08_annotate_bioassays.py
-
-Annotates all selected AIDs with target type and activity type information from two complementary sources: ChEMBL curated metadata (for assays with a ChEMBL counterpart) and PubChem bioassay summary data (for all assays). Produces a full annotated table and an organism-level subset.
+Annotates every selected AID with target type, protein ID, ChEMBL ID, compound counts, and a quality label.
 
 **Inputs**
-- `data/processed/04_extracted_bioassays/{pathogen}/summary.csv` — per-AID compound counts from script 04
-- `data/processed/02_bioassays_to_keep/chembl_assays_in_pubchem_{code}.csv` — ChEMBL–PubChem AID mappings from script 02
-- `data/config/chembl_mappings/assays.csv` — ChEMBL assay table (includes `tid`)
-- `data/config/chembl_mappings/target_dictionary.csv` — ChEMBL target dictionary (`tid` → `target_type`)
-- `data/config/bioassays_summary/PubChem_bioassay_{pathogen}.csv` — PubChem bioassay summaries (manual download)
-- `output/05_results/{pathogen}/{aid}_meta.csv` — assay readout column headers from script 05
+- `data/processed/02_bioassays_to_keep/aids_{pathogen}.csv` — from script 02
+- `data/processed/02_bioassays_to_keep/chembl_assays_in_pubchem_{code}.csv` — from script 02
+- `data/processed/04_extracted_bioassays/{pathogen}/summary.csv` — from script 04
+- `data/config/bioassays_summary/PubChem_bioassay_{pathogen}.csv` — manual download
+- `data/config/bioassays_summary/bioassays_manually_excluded.csv` — manual curation; AIDs with `discard=1` are excluded before annotation
+- `../../chembl-antimicrobial-tasks/output/{code}/18_assays_master.csv` — companion repo
 
 **Outputs**
-- `data/processed/08_annotated_assays/summaries.csv` — all AIDs annotated
-- `data/processed/08_annotated_assays/summaries_organism.csv` — organism-level AIDs only, with activity type
+- `output/06_annotate_selected_bioassays/06_summary.csv`
 
-**Logic**
+**Output columns**
 
-*Target type classification* (`single_protein / organism / other / None`):
-- ChEMBL: joins `assays.csv` → `target_dictionary.csv` via `tid`; maps `SINGLE PROTEIN` → `single_protein`, `ORGANISM` / `NON-MOLECULAR` → `organism`, everything else → `other`. `None` if no ChEMBL match.
-- PubChem: `single_protein` if `protacxns` or `geneids` fields are populated, otherwise `organism`.
-
-*Organism filter*: keeps AIDs where PubChem = `organism` AND (ChEMBL = `organism` OR ChEMBL = `None`).
-
-*Activity type classification* (organism assays only, from `_meta.csv` column headers):
-
-| Category | Keywords matched |
+| Column | Description |
 |---|---|
-| `ic50` | ic50, ic90 |
-| `ec50` | ec50, ac50, pac50, pic50 |
-| `ki` | ki (word boundary) |
-| `kd` | kd (word boundary) |
-| `mic` | mic (word boundary) |
-| `inhibition` | inhibition, pctinhib, pct inh, % inhib, % activ, growth inhib, percent_response, percentresponse, % survival, inhib_ |
-| `fluorescence` | fluorescence |
-| `luminescence` | luminescence |
-| `absorbance` | absorbance |
-| `doseresponse` | hill slope, hill_slope, dose-response, dose_response, absac, potency |
-| `other` | no keyword matched |
+| `pathogen_code` | Short pathogen code (e.g. `abaumannii`, `mtuberculosis`) |
+| `aid` | PubChem Assay ID |
+| `chembl_id` | Linked ChEMBL assay ID, if the assay had a compound mismatch with ChEMBL |
+| `target_type` | `single_protein`, `organism`, `discarded`, or `other` |
+| `protein_id` | UniProt accession(s) from `18_assays_master.csv` (ChEMBL assays) or `protacxns` from PubChem (novel assays) |
+| `cids` | Number of unique compounds |
+| `actives` | Active compound count |
+| `inactives` | Inactive compound count |
+| `inconclusive` | Inconclusive compound count |
+| `unspecified` | Unspecified compound count |
+| `chemical_probe` | Chemical probe compound count |
+| `label` | `A` ; `B` ; `discarded` if denominator is zero |
 
----
-
-### 09_filter_bioassays_to_model.py
-
-Filters the organism-level annotated assays to a modelling-ready table. Drops metadata columns, computes active ratio, assigns quality labels A/B, and flags non-antimicrobial counter-screens.
-
-**Input**
-- `data/processed/08_annotated_assays/summaries_organism.csv` — from script 08
-
-**Output**
-- `data/processed/09_bioassays_to_model/bioassays_to_model.csv`
-
-**Logic**
-
-*Active ratio:* `ratio = round(actives / (actives + inactives), 3)`. `NaN` if denominator is zero.
-
-*Quality labels:*
-
+Label mimicks the ChEMBL decision tree:
 | Label | Condition |
 |---|---|
 | `A` | Large class-balanced dataset: `cids ≥ 1000`, `actives ≥ 50`, `ratio < 0.5` |
 | `B` | Active-enriched dataset: `actives ≥ 100`, `ratio ≥ 0.5` |
 | discarded | Neither condition met |
 
-Assays that do not meet either condition are removed.
-
-*`keep` flag:* `False` for AIDs manually identified as counter-screens or non-antimicrobial assays. `True` for all others. Flagged AIDs:
-
-| AID | Reason | Pathogen |
-|---|---|---|
-| 2327 | Mammalian fibroblast toxicity counter-screen | C. albicans |
-| 588517 | Compound fluorescence interference counter-screen | C. albicans |
-| 588335 | Biochemical artifact counter-screen | M. tuberculosis |
-| 527 | Quorum sensing / virulence pathway inhibition, not bacterial killing | S. aureus |
-| 1159583 | Hypoxia-regulated fluorescent biosensor assay, not bacterial killing | M. tuberculosis |
-| 488966 | Bacterial capsule biogenesis / virulence factor, not growth inhibition | E. coli |
-| 463173 | Teichoic acid synthesis / virulence factor, non-essential for in vitro viability | S. aureus |
-| 504834 | 96-hour duplicate of AID 504832 (48-hour counterpart kept) | P. falciparum |
-| 504848 | 96-hour duplicate of AID 504850 (48-hour counterpart kept) | P. falciparum |
-| 488745 | 96-hour duplicate of AID 488752 (48-hour counterpart kept) | P. falciparum |
-| 434955 | Sensitization to beta-lactam antibiotics, not direct bacterial killing | M. tuberculosis |
-| 434987 | Sensitization to beta-lactam antibiotics, not direct bacterial killing | M. tuberculosis |
-| 1159568 | Redundant Dd2 Sybr green subset (Set9); AID 1159566 kept | P. falciparum |
-| 1159570 | Redundant 3D7-ScDHODH engineered-strain mechanistic follow-up; AID 1159566 kept | P. falciparum |
-| 1159571 | Redundant PfNITD609-resistant ATP4 engineered-strain mechanistic follow-up; AID 1159566 kept | P. falciparum |
-
-**Output columns**
-
-| Column | Description |
-|---|---|
-| `code` | Pathogen code |
-| `aid` | PubChem Assay ID |
-| `cids` | Number of unique compounds |
-| `actives` | Number of active compounds |
-| `inactives` | Number of inactive compounds |
-| `ratio` | Fraction of actives: `actives / (actives + inactives)` |
-| `label` | Quality label: `A` or `B` |
-| `keep` | `False` for manually flagged non-antimicrobial assays |
-| `activity_type_pubchem` | Readout type inferred from column headers (script 08) |
-| `target_type_chembl` | Target classification from ChEMBL (`single_protein / organism / other`) |
-| `target_type_pubchem` | Target classification from PubChem (`single_protein / organism`) |
-| `pubchem_name` | Assay name (`aidname`) |
-| `pubchem_description` | Assay description (`aiddesc`) |
-| `pubchem_readout_columns` | Non-standard column names from `_meta.csv`, pipe-separated |
+**target_type logic**
+- **ChEMBL assays** (present in `chembl_assays_in_pubchem_{code}.csv`): read `target_type_curated_extra` from `18_assays_master.csv` → `SINGLE PROTEIN` → `single_protein`; `ORGANISM` → `organism`; `DISCARDED` → `discarded`; anything else → `other`
+- **Novel PubChem assays**: `protacxns` or `geneids` populated → `single_protein`; both empty → `organism`
 
 ---
 
 ### manual_download_individual_aid.py
 
 Utility for downloading and processing a single PubChem assay via the REST API (max 10 000 SIDs per request). Not part of the main batch pipeline; intended for manual curation of specific assays.
-
-**Hardcoded defaults:** AID 743156, pathogen `campylobacter`.
-
-**Outputs**
-- `output/05_results/{pathogen}/{aid}.csv`
-- `output/05_results/{pathogen}/{aid}_meta.csv`
 
 ---
 
@@ -375,17 +253,5 @@ Each final assay CSV contains one compound per row:
 | `activity` | Binary label: `1` active, `0` inactive |
 
 ---
-
-## Dependencies
-
-```
-pandas
-rdkit
-requests
-beautifulsoup4
-tqdm
-matplotlib
-stylia
-```
 
 External data: PubChem FTP/REST API, ChEMBL assay mappings (from the companion `chembl-antimicrobial-tasks` repository).

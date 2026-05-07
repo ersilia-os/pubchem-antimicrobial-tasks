@@ -13,7 +13,7 @@ configpath = os.path.join(datapath, "config")
 taxpath = os.path.join(datapath, "processed", "00_taxonomy_processed")
 bioassaypath = os.path.join(datapath, "processed", "00_bioassays_summary")
 
-plotpath = os.path.join(root, "..", "output", "plots")
+plotpath = os.path.join(root, "..", "output", "00_preprocess_bioassays")
 
 os.makedirs(taxpath, exist_ok=True)
 os.makedirs(bioassaypath, exist_ok=True)

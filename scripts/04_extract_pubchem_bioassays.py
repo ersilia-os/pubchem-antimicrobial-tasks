@@ -234,12 +234,14 @@ for p in pathogens:
     df_summary = df_summary.reset_index()
     df_summary.to_csv(os.path.join(outdir_clean, "summary.csv"), index=False)
 
-    cid2smi_df = unique_cids_smiles_counts(outdir_clean, aids_with_data)
+    cached_cids_path = os.path.join(unique_cids_path, f"unique_cids_{p.lower()}.csv")
+    if not aids_to_extract and os.path.exists(cached_cids_path):
+        print(f"  CID aggregation: loading from cache")
+        cid2smi_df = pd.read_csv(cached_cids_path)
+    else:
+        cid2smi_df = unique_cids_smiles_counts(outdir_clean, aids_with_data)
+        cid2smi_df.to_csv(cached_cids_path, index=False)
     unique_cids_all[p.lower()] = [len(cid2smi_df), len(aids_with_data)]
-    cid2smi_df.to_csv(
-        os.path.join(unique_cids_path, f"unique_cids_{p.lower()}.csv"),
-        index=False,
-    )
     all_dfs.append(cid2smi_df)
 
 df_cids = pd.DataFrame.from_dict(unique_cids_all, orient="index", columns=["n_cid", "n_aid"])

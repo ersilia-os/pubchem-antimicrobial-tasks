@@ -12,7 +12,7 @@ from default import pathogens, MIN_COMPOUNDS, CHEMBL_MISMATCH_THRESHOLD, PATHOGE
 datapath = os.path.join(root, "..", "data")
 configpath = os.path.join(datapath, "config")
 outpath = os.path.join(datapath, "processed", "02_bioassays_to_keep")
-plotpath = os.path.join(root, "..", "output", "plots")
+plotpath = os.path.join(root, "..", "output", "02_bioassays_not_in_chembl")
 
 os.makedirs(outpath, exist_ok=True)
 os.makedirs(plotpath, exist_ok=True)

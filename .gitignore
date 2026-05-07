@@ -3,23 +3,6 @@ data/*
 output/*
 tmp/*
 
-# Track only .gitkeep files in otherwise-ignored directories
-!data/config/
-data/config/*
-!data/config/.gitkeep
-!data/raw/
-data/raw/*
-!data/raw/.gitkeep
-!data/processed/
-data/processed/*
-!data/processed/.gitkeep
-!output/plots/
-output/plots/*
-!output/plots/.gitkeep
-!output/05_results/
-output/05_results/*
-!output/05_results/.gitkeep
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

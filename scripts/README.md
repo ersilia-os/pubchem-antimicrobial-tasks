@@ -51,15 +51,6 @@ Manual setup
        → output/06_annotate_selected_bioassays/06_activity_outcomes.png
        → output/06_annotate_selected_bioassays/06_target_types.png
        → output/06_selected_bioassays/{code}/{aid}.csv
-
-08_annotate_bioassays.py
-  └── Annotate each AID with target type (ChEMBL + PubChem) and activity type (PubChem readout columns)
-       → data/processed/08_annotated_assays/summaries.csv
-       → data/processed/08_annotated_assays/summaries_organism.csv
-
-09_filter_bioassays_to_model.py
-  └── Apply quality thresholds, label assays A/B, flag non-antimicrobial counter-screens
-       → data/processed/09_bioassays_to_model/bioassays_to_model.csv
 ```
 
 `manual_download_individual_aid.py` is a utility for downloading a single assay via the PubChem REST API; it is not part of the main batch pipeline.

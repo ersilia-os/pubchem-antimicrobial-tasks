@@ -46,10 +46,11 @@ Manual setup
        → output/05_curate_bioassays/05_summary_table.csv
 
 06_annotate_selected_bioassays.py
-  └── Annotate each selected AID with target type, ChEMBL ID, and compound counts; generate summary plots
+  └── Annotate each selected AID with target type, ChEMBL ID, and compound counts; generate summary plots and per-assay task files
        → output/06_annotate_selected_bioassays/06_summary.csv
        → output/06_annotate_selected_bioassays/06_activity_outcomes.png
        → output/06_annotate_selected_bioassays/06_target_types.png
+       → output/06_selected_bioassays/{code}/{aid}.csv
 
 08_annotate_bioassays.py
   └── Annotate each AID with target type (ChEMBL + PubChem) and activity type (PubChem readout columns)
@@ -203,6 +204,7 @@ Annotates every selected AID with target type, protein ID, ChEMBL ID, compound c
 
 **Outputs**
 - `output/06_annotate_selected_bioassays/06_summary.csv`
+- `output/06_selected_bioassays/{code}/{aid}.csv` — active + inactive compounds only (`smiles`, `bin`); one file per non-discarded assay
 
 **Output columns**
 

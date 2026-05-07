@@ -217,6 +217,34 @@ out_df.to_csv(out_path, index=False)
 print(f"\nSaved {len(out_df)} rows → {out_path}")
 
 # ---------------------------------------------------------------------------
+# Write per-assay binary task files (active + inactive only, smiles + bin)
+# ---------------------------------------------------------------------------
+
+selected_dir = ROOT / "output" / "06_selected_bioassays"
+selected_dir.mkdir(parents=True, exist_ok=True)
+
+print("\nWriting per-assay task files…")
+written = 0
+for _, row in out_df.iterrows():
+    if row["label"] == "discarded":
+        continue
+    code     = row["pathogen_code"]
+    aid      = int(row["aid"])
+    pathogen = next(p for p in pathogens if PATHOGEN_TO_CODE[p] == code)
+    src      = ROOT / "output" / "05_curate_bioassays" / pathogen.lower() / f"{aid}.csv"
+    if not src.exists():
+        continue
+    df = pd.read_csv(src, usecols=["smiles", "activity"])
+    df = df[df["activity"].isin([0, 1])].copy()
+    df.rename(columns={"activity": "bin"}, inplace=True)
+    dest_dir = selected_dir / code
+    dest_dir.mkdir(exist_ok=True)
+    df.to_csv(dest_dir / f"{aid}.csv", index=False)
+    written += 1
+
+print(f"  Written {written} assay files → {selected_dir}")
+
+# ---------------------------------------------------------------------------
 # Plots
 # ---------------------------------------------------------------------------
 
